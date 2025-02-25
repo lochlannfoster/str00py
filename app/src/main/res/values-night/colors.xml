@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Primary branding colors for night mode -->
+    <color name="colorPrimary">@color/purple_200</color>
+    <color name="colorPrimaryDark">@color/purple_700</color>
+    <color name="colorAccent">@color/teal_200</color>
+
+    <!-- Additional custom attributes (swapped for dark mode if desired) -->
+    <!-- For example, in night mode you might want the "backgroundLight" to be dark -->
+    <color name="backgroundLight">@color/black</color>
+    <color name="onBackgroundLight">@color/white</color>
+
+    <!-- Standard Material color palette (night variants can be adjusted if needed) -->
+    <color name="purple_200">#BB86FC</color>
+    <color name="purple_500">#6200EE</color>
+    <color name="purple_700">#3700B3</color>
+    <color name="teal_200">#03DAC5</color>
+    <color name="teal_700">#018786</color>
+    <color name="black">#000000</color>
+    <color name="white">#FFFFFF</color>
+</resources>

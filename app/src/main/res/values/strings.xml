@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">StroopLocker</string>
+    <string name="settings">Settings</string>
+    <string name="stats">Stats</string>
+    <string name="exit">Exit</string>
+</resources>
