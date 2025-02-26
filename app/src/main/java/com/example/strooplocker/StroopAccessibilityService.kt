@@ -8,59 +8,52 @@ import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 
 /**
- * Accessibility service that monitors window changes.
- * If a newly opened package is in the locked list, we show StroopLockActivity.
+ * Accessibility service that re-launches the Stroop puzzle
+ * whenever a locked app's window comes to the foreground (focus).
  */
 class StroopAccessibilityService : AccessibilityService() {
 
     companion object {
         private const val TAG = "StroopAccessibility"
+        /** Key for passing the locked package name into StroopLockActivity */
+        const val EXTRA_LOCKED_PACKAGE = "TARGET_PACKAGE"
     }
 
     override fun onServiceConnected() {
         super.onServiceConnected()
+
+        // Set up the service to watch for window state changes (and optionally content changes).
         serviceInfo = serviceInfo.apply {
             feedbackType = AccessibilityServiceInfo.FEEDBACK_ALL_MASK
-            eventTypes = AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+            eventTypes = AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED or
+                    AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
             flags = AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS
         }
         Log.d(TAG, "Service connected!")
     }
 
-
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        if (event == null) {
-            Log.w(TAG, "onAccessibilityEvent: event is null, ignoring.")
-            return
-        }
+        if (event == null) return
 
         val eventType = event.eventType
-        val eventTypeName = when (eventType) {
-            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> "TYPE_WINDOW_STATE_CHANGED"
-            AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> "TYPE_WINDOW_CONTENT_CHANGED"
-            else -> "OTHER($eventType)"
-        }
-        Log.d(TAG, "onAccessibilityEvent: type=$eventTypeName")
+        // We mainly care about window state changes (app in foreground).
+        if (eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED ||
+            eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
 
-        if (eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
-            val packageName = event.packageName?.toString() ?: ""
-            Log.d(TAG, "TYPE_WINDOW_STATE_CHANGED: packageName=$packageName")
-
-            // Load locked apps (only do this once)
+            val packageName = event.packageName?.toString() ?: return
             val lockedApps = getLockedAppsSet()
-            Log.d(TAG, "Currently locked apps: $lockedApps")
 
             val isLocked = lockedApps.contains(packageName)
-            Log.d(TAG, "isLocked=$isLocked for packageName=$packageName")
+            Log.d(TAG, "TYPE_WINDOW_STATE_CHANGED: packageName=$packageName, isLocked=$isLocked")
 
             if (isLocked) {
                 Log.i(TAG, "Launching StroopLockActivity for locked package: $packageName")
+
                 val lockIntent = Intent(this, StroopLockActivity::class.java).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    putExtra("LOCKED_TARGET_PACKAGE", packageName)
+                    putExtra(EXTRA_LOCKED_PACKAGE, packageName)
                 }
                 startActivity(lockIntent)
-
             }
         }
     }
@@ -70,8 +63,7 @@ class StroopAccessibilityService : AccessibilityService() {
     }
 
     /**
-     * Loads the locked packages set from SharedPreferences.
-     * Adjust the file name/key to match your usage.
+     * Loads the locked packages from SharedPreferences
      */
     private fun getLockedAppsSet(): Set<String> {
         val prefs: SharedPreferences = getSharedPreferences("strooplocker_prefs", MODE_PRIVATE)
