@@ -26,17 +26,15 @@ import kotlinx.coroutines.withContext
 
 class StroopLockActivity : AppCompatActivity() {
 
-    // UI Components
     private lateinit var challengeText: TextView
     private lateinit var answerGrid: GridLayout
     private lateinit var rootLayout: ConstraintLayout
     private lateinit var exitButton: Button
     private lateinit var selectAppButton: Button
+    private lateinit var enableAccessibilityButton: Button
 
-    // Dynamically created answer buttons
     private lateinit var answerButtons: MutableList<Button>
 
-    // A map of color name -> hex code
     private val colorMap = mapOf(
         "Red" to "#FF0000",
         "Green" to "#00FF00",
@@ -48,68 +46,62 @@ class StroopLockActivity : AppCompatActivity() {
         "Cyan" to "#00FFFF",
         "Purple" to "#8A00E6"
     )
-
-    // Pool of available color names
     private val availablePool: List<String> = colorMap.keys.toList()
 
-    // We store what the user must choose to succeed
     private var expectedAnswer = ""
 
-    // To avoid rapid clicks
     @Volatile
     private var buttonCooldownActive = false
-
-    // The app package we want to "lock" and launch after success
-    private var lockedAppPackage: String? = null
 
     companion object {
         private const val REQUEST_CODE_PICK_APP = 2001
     }
 
-
-    /**
-     * Helper function to check if our StroopAccessibilityService is enabled.
-     */
-    private fun isAccessibilityServiceEnabled(
-        context: Context,
-        serviceClass: Class<*>
-    ): Boolean {
-        val am = context.getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
-        val enabledServices = am.getEnabledAccessibilityServiceList(
-            android.accessibilityservice.AccessibilityServiceInfo.FEEDBACK_ALL_MASK
-        )
-
-        for (enabledService in enabledServices) {
-            val enabledServiceId = enabledService.id
-            if (enabledServiceId.contains(context.packageName + "/" + serviceClass.name)) {
-                return true
-            }
-        }
-        return false
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // NOTE: singleTask or singleTop in the Manifest helps ensure we get launched in a new Task.
         setContentView(R.layout.activity_stroop_lock)
 
-        // Root layout
         rootLayout = findViewById(R.id.rootLayout)
         rootLayout.setBackgroundColor(Color.parseColor("#F0F0F0"))
 
-        // Text + Grid
         challengeText = findViewById(R.id.challengeText)
         answerGrid = findViewById(R.id.answerGrid)
 
-        // Buttons
         exitButton = findViewById(R.id.exitButton)
         styleMenuButton(exitButton, Color.parseColor("#CCCCCC"), Color.parseColor("#212121"))
-        exitButton.setOnClickListener { finishAffinity() }
+        exitButton.setOnClickListener {
+            // Mark that the puzzle is incomplete and go Home
+            StroopAccessibilityService.challengeInProgress = false
+            StroopAccessibilityService.pendingLockedPackage = null
+
+            val startMain = Intent(Intent.ACTION_MAIN).apply {
+                addCategory(Intent.CATEGORY_HOME)
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            startActivity(startMain)
+            finish()
+        }
 
         selectAppButton = findViewById(R.id.selectAppButton)
         styleMenuButton(selectAppButton, Color.parseColor("#CCCCCC"), Color.parseColor("#212121"))
-        selectAppButton.setOnClickListener { pickAppFromLauncher() }
+        selectAppButton.setOnClickListener {
+            pickAppFromLauncher()
+        }
 
-        // Create a 3x3 grid of answer buttons
+        enableAccessibilityButton = findViewById(R.id.enableAccessibilityButton)
+        styleMenuButton(enableAccessibilityButton, Color.parseColor("#CCCCCC"), Color.parseColor("#212121"))
+        enableAccessibilityButton.setOnClickListener {
+            if (!isAccessibilityServiceEnabled()) {
+                val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                startActivity(intent)
+            } else {
+                Toast.makeText(this, "Accessibility is already enabled!", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        // Create the 3x3 answer buttons
         answerButtons = mutableListOf()
         answerGrid.columnCount = 3
         answerGrid.rowCount = 3
@@ -125,7 +117,7 @@ class StroopLockActivity : AppCompatActivity() {
             answerButtons.add(btn)
         }
 
-        // Ensure buttons are square after layout
+        // Make them square
         answerGrid.post {
             answerButtons.forEach { button ->
                 val size = button.width
@@ -135,49 +127,66 @@ class StroopLockActivity : AppCompatActivity() {
             }
         }
 
-        // Set click listeners
         answerButtons.forEachIndexed { index, button ->
             button.setOnClickListener { handleButtonClick(button, button.text.toString(), index) }
         }
 
-        // Generate the initial single challenge
         applyChallenge()
     }
 
     /**
-     * We check here if our Accessibility Service is active; if not, open settings.
+     * If we come back from the background or something, we can re-apply the puzzle
      */
     override fun onResume() {
         super.onResume()
 
-        // If your accessibility service is NOT enabled, open Accessibility Settings
-        if (!isAccessibilityServiceEnabled(this, StroopAccessibilityService::class.java)) {
-            val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-            startActivity(intent)
+        // If for some reason we want to re-generate puzzle each time
+        if (StroopAccessibilityService.challengeInProgress) {
+            applyChallenge()
         }
     }
 
-    /**
-     * Simple helper to style a menu button with a background, stroke, etc.
-     */
-    private fun styleMenuButton(button: Button, backgroundColor: Int, textColor: Int) {
-        val drawable = GradientDrawable().apply {
-            setColor(backgroundColor)
-            cornerRadius = 8f
-            setStroke(4, Color.parseColor("#757575"))
+    private fun pickAppFromLauncher() {
+        val intent = Intent(Intent.ACTION_PICK_ACTIVITY).apply {
+            putExtra(
+                Intent.EXTRA_INTENT,
+                Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+            )
         }
-        button.background = drawable
-        button.setTextColor(textColor)
+        startActivityForResult(intent, REQUEST_CODE_PICK_APP)
     }
 
-    /**
-     * Generate a single challenge. We randomly decide if it's "primary" or "inverse".
-     * If primary, user must pick the INK color name.
-     * If inverse, user must pick the WORD itself.
-     */
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_CODE_PICK_APP && resultCode == Activity.RESULT_OK) {
+            val component = data?.component
+            if (component != null) {
+                val newLockedApp = component.packageName
+                LockManager.addLockedApp(this, newLockedApp)
+                Toast.makeText(this, "Locked app added: $newLockedApp", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun isAccessibilityServiceEnabled(): Boolean {
+        val manager = getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
+        val enabledServices = manager.getEnabledAccessibilityServiceList(
+            android.accessibilityservice.AccessibilityServiceInfo.FEEDBACK_ALL_MASK
+        )
+        for (serviceInfo in enabledServices) {
+            val enabledService = serviceInfo.resolveInfo.serviceInfo
+            if (
+                enabledService.packageName == packageName &&
+                enabledService.name == "com.example.strooplocker.StroopAccessibilityService"
+            ) {
+                return true
+            }
+        }
+        return false
+    }
+
     private fun applyChallenge() {
         try {
-            // 1) Choose random distinct word & color
             var word: String
             var inkColorName: String
             do {
@@ -185,52 +194,31 @@ class StroopLockActivity : AppCompatActivity() {
                 inkColorName = availablePool.random()
             } while (word == inkColorName)
 
-            // 2) Randomly decide: is this a "primary" or "inverse" challenge?
-            val isInverse = (0..1).random() == 1  // 50% chance
+            val isInverse = (0..1).random() == 1
+            expectedAnswer = if (isInverse) word else inkColorName
 
-            if (isInverse) {
-                // Inverse: user must pick the word itself
-                expectedAnswer = word
-            } else {
-                // Primary: user must pick the ink color
-                expectedAnswer = inkColorName
-            }
-
-            // Update the UI
             runOnUiThread {
                 challengeText.text = word
                 challengeText.textSize = 72f
-                challengeText.typeface =
-                    ResourcesCompat.getFont(this, R.font.open_sans_extrabold)
-
+                challengeText.typeface = ResourcesCompat.getFont(this, R.font.open_sans_extrabold)
                 val inkColor = Color.parseColor(colorMap[inkColorName] ?: "#000000")
                 challengeText.setTextColor(inkColor)
             }
 
-            // 3) Populate the 9 answer buttons
             generateChallengeButtons()
-
         } catch (e: Exception) {
             e.printStackTrace()
         }
     }
 
-    /**
-     * Populate the 9 answer buttons with random color labels, each label with a text color from a shifted list.
-     */
     private fun generateChallengeButtons() {
         CoroutineScope(Dispatchers.Default).launch {
             try {
-                // Create a shuffled list for the labels
                 val selectedColors = availablePool.shuffled().toMutableList()
-
-                // Ensure the expectedAnswer is included
                 if (!selectedColors.contains(expectedAnswer)) {
                     selectedColors[0] = expectedAnswer
                     selectedColors.shuffle()
                 }
-
-                // A simple shift so label i has text color i+1
                 val textColorAssignment = simpleCyclicDerangement(selectedColors)
 
                 withContext(Dispatchers.Main) {
@@ -247,20 +235,10 @@ class StroopLockActivity : AppCompatActivity() {
                             R.font.open_sans_extrabold
                         )
 
-                        // Look up the hex for the assigned text color
                         val assignedHex = colorMap[textColorAssignment[index]] ?: "#000000"
                         val textColor = Color.parseColor(assignedHex)
                         button.setTextColor(textColor)
 
-                        // Debug log
-                        Log.d(
-                            "ColorDebug",
-                            "Button $index: label=$labelColor, intendedTextColor=$assignedHex, computedTextColor=${
-                                hexStringOfColor(textColor)
-                            }"
-                        )
-
-                        // Set background
                         val drawable = GradientDrawable().apply {
                             setColor(buttonBgColor)
                             cornerRadius = 8f
@@ -276,9 +254,6 @@ class StroopLockActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * Called when an answer button is tapped. If correct, launch locked app. Otherwise, re-generate challenge.
-     */
     private fun handleButtonClick(button: Button, selectedColor: String, buttonIndex: Int) {
         if (buttonCooldownActive) return
         buttonCooldownActive = true
@@ -287,23 +262,35 @@ class StroopLockActivity : AppCompatActivity() {
         val bgDrawable = button.background as GradientDrawable
         val originalTextColor = button.currentTextColor
 
-        // Quick feedback: flash button
         bgDrawable.setColor(originalTextColor)
         button.setTextColor(Color.parseColor("#212121"))
 
         Handler(Looper.getMainLooper()).postDelayed({
-            // Revert
             bgDrawable.setColor(buttonBackgroundColor)
             button.setTextColor(originalTextColor)
 
             if (selectedColor == expectedAnswer) {
-                // Correct: launch locked app
-                Toast.makeText(
-                    this,
-                    "Correct! Launching locked app...",
-                    Toast.LENGTH_SHORT
-                ).show()
-                launchLockedApp()
+                Toast.makeText(this, "Correct! Launching locked app...", Toast.LENGTH_SHORT).show()
+
+                // Mark puzzle done
+                StroopAccessibilityService.challengeInProgress = false
+
+                // Attempt to relaunch the locked package
+                val lockedPackage = StroopAccessibilityService.pendingLockedPackage
+                if (!lockedPackage.isNullOrEmpty()) {
+                    try {
+                        val launchIntent = packageManager.getLaunchIntentForPackage(lockedPackage)
+                        if (launchIntent != null) {
+                            startActivity(launchIntent)
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        Toast.makeText(this, "Unable to launch $lockedPackage", Toast.LENGTH_SHORT).show()
+                    } finally {
+                        StroopAccessibilityService.pendingLockedPackage = null
+                    }
+                }
+                finish()
             } else {
                 Toast.makeText(this, "Incorrect! Try again.", Toast.LENGTH_SHORT).show()
                 applyChallenge()
@@ -313,73 +300,20 @@ class StroopLockActivity : AppCompatActivity() {
         }, 500)
     }
 
-    /**
-     * Launch the app chosen in pickAppFromLauncher(), if any.
-     */
-    private fun launchLockedApp() {
-        if (lockedAppPackage == null) {
-            Toast.makeText(this, "No locked app selected!", Toast.LENGTH_SHORT).show()
-            return
+    private fun styleMenuButton(button: Button, backgroundColor: Int, textColor: Int) {
+        val drawable = GradientDrawable().apply {
+            setColor(backgroundColor)
+            cornerRadius = 8f
+            setStroke(4, Color.parseColor("#757575"))
         }
-        try {
-            val launchIntent = packageManager.getLaunchIntentForPackage(lockedAppPackage!!)
-            if (launchIntent != null) {
-                startActivity(launchIntent)
-            } else {
-                Toast.makeText(this, "Unable to launch $lockedAppPackage", Toast.LENGTH_SHORT).show()
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            Toast.makeText(this, "Error launching $lockedAppPackage", Toast.LENGTH_SHORT).show()
-        }
+        button.background = drawable
+        button.setTextColor(textColor)
     }
 
-    /**
-     * Let user pick a launchable app from the system's built-in "Pick Activity" UI.
-     */
-    private fun pickAppFromLauncher() {
-        val intent = Intent(Intent.ACTION_PICK_ACTIVITY).apply {
-            putExtra(
-                Intent.EXTRA_INTENT,
-                Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-            )
-        }
-        startActivityForResult(intent, REQUEST_CODE_PICK_APP)
-    }
-
-    /**
-     * Receive the result of picking an app.
-     */
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-
-        if (requestCode == REQUEST_CODE_PICK_APP && resultCode == Activity.RESULT_OK) {
-            // The chosen component
-            val component = data?.component
-            if (component != null) {
-                lockedAppPackage = component.packageName
-                Toast.makeText(this, "Locked app set to: $lockedAppPackage", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-
-    /**
-     * Convert an int color to #RRGGBB string for debugging logs.
-     */
-    private fun hexStringOfColor(color: Int): String {
-        return String.format("#%06X", 0xFFFFFF and color)
-    }
-
-    /**
-     * A trivial "shift everything by 1" function so label i doesn't get color i.
-     */
     private fun <T> simpleCyclicDerangement(list: List<T>): List<T> {
         return if (list.size <= 1) list else list.drop(1) + list.first()
     }
 
-    /**
-     * Adjust the font size based on word length, so longer color names appear smaller.
-     */
     private fun calculateFontSizeForWord(word: String): Float {
         val maxSize = 26f
         val minSize = 16f
