@@ -34,6 +34,7 @@ class StroopLockActivity : AppCompatActivity() {
         private const val REQUEST_CODE_PICK_APP = 2001
     }
 
+    // Repository for DB calls:
     private lateinit var repository: LockedAppsRepository
 
     // UI references
@@ -80,15 +81,18 @@ class StroopLockActivity : AppCompatActivity() {
         repository = LockedAppsRepository(dao)
 
         // Check if AccessibilityService gave us a locked package
-        lockedPackageToLaunch = intent?.getStringExtra(StroopAccessibilityService.EXTRA_LOCKED_PACKAGE)
+        lockedPackageToLaunch =
+            intent?.getStringExtra(StroopAccessibilityService.EXTRA_LOCKED_PACKAGE)
         Log.d(TAG, "onCreate: lockedPackageToLaunch=$lockedPackageToLaunch")
 
         // Optionally, fallback if user launched from home screen and we have exactly one locked app
         if (lockedPackageToLaunch == null) {
-            val lockedApps = repository.getAllLockedApps()
-            if (lockedApps.size == 1) {
-                lockedPackageToLaunch = lockedApps.first()
-                Log.d(TAG, "Fallback to single locked app => $lockedPackageToLaunch")
+            CoroutineScope(Dispatchers.IO).launch {
+                val lockedApps = repository.getAllLockedApps()
+                if (lockedApps.size == 1) {
+                    lockedPackageToLaunch = lockedApps.first()
+                    Log.d(TAG, "Fallback to single locked app => $lockedPackageToLaunch")
+                }
             }
         }
 
@@ -104,7 +108,11 @@ class StroopLockActivity : AppCompatActivity() {
         rootLayout.setBackgroundColor(Color.parseColor("#F0F0F0"))
         styleMenuButton(exitButton, Color.parseColor("#CCCCCC"), Color.parseColor("#212121"))
         styleMenuButton(selectAppButton, Color.parseColor("#CCCCCC"), Color.parseColor("#212121"))
-        styleMenuButton(enableAccessibilityButton, Color.parseColor("#CCCCCC"), Color.parseColor("#212121"))
+        styleMenuButton(
+            enableAccessibilityButton,
+            Color.parseColor("#CCCCCC"),
+            Color.parseColor("#212121")
+        )
 
         // Exit => go home
         exitButton.setOnClickListener {
@@ -146,7 +154,7 @@ class StroopLockActivity : AppCompatActivity() {
             answerButtons.add(btn)
         }
 
-        // Ensure squares
+        // Ensure squares after layout
         answerGrid.post {
             answerButtons.forEach { button ->
                 val size = button.width
@@ -157,8 +165,11 @@ class StroopLockActivity : AppCompatActivity() {
         }
 
         // Puzzle button clicks
-        answerButtons.forEachIndexed { index, button ->
-            button.setOnClickListener { handleButtonClick(button, button.text.toString(), index) }
+        answerButtons.forEach { button ->
+            button.setOnClickListener {
+                val chosenColor = button.text.toString()
+                handleButtonClick(button, chosenColor)
+            }
         }
 
         // Generate puzzle
@@ -186,9 +197,8 @@ class StroopLockActivity : AppCompatActivity() {
     ): Boolean {
         val am = context.getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
         val expected = ComponentName(context, serviceClass)
-        val enabledServices = am.getEnabledAccessibilityServiceList(
-            android.accessibilityservice.AccessibilityServiceInfo.FEEDBACK_ALL_MASK
-        )
+        val enabledServices =
+            am.getEnabledAccessibilityServiceList(android.accessibilityservice.AccessibilityServiceInfo.FEEDBACK_ALL_MASK)
         for (serviceInfo in enabledServices) {
             val enabledService = serviceInfo.resolveInfo.serviceInfo
             if (enabledService.packageName == expected.packageName &&
@@ -208,6 +218,10 @@ class StroopLockActivity : AppCompatActivity() {
         }
         button.background = drawable
         button.setTextColor(textColor)
+
+        // Also remove any Material tint from the button
+        button.backgroundTintList = null
+        button.backgroundTintMode = null
     }
 
     private fun applyChallenge() {
@@ -242,50 +256,55 @@ class StroopLockActivity : AppCompatActivity() {
     }
 
     private fun generateChallengeButtons() {
-        CoroutineScope(Dispatchers.Default).launch {
-            try {
-                val selectedColors = availablePool.shuffled().toMutableList()
-                if (!selectedColors.contains(expectedAnswer)) {
-                    selectedColors[0] = expectedAnswer
-                    selectedColors.shuffle()
-                }
-                val textColorAssignment = simpleCyclicDerangement(selectedColors)
-
-                withContext(Dispatchers.Main) {
-                    val buttonBgColor = Color.parseColor("#CCCCCC")
-                    answerButtons.forEachIndexed { index, button ->
-                        val labelColor = selectedColors[index]
-                        button.text = labelColor
-                        button.setTextSize(
-                            TypedValue.COMPLEX_UNIT_SP,
-                            calculateFontSizeForWord(labelColor)
-                        )
-                        button.typeface = ResourcesCompat.getFont(
-                            this@StroopLockActivity,
-                            R.font.open_sans_extrabold
-                        )
-
-                        val assignedHex = colorMap[textColorAssignment[index]] ?: "#000000"
-                        val textColor = Color.parseColor(assignedHex)
-                        button.setTextColor(textColor)
-
-                        Log.d(TAG, "generateButtons: index=$index label=$labelColor textColor=$assignedHex")
-
-                        val drawable = GradientDrawable().apply {
-                            setColor(buttonBgColor)
-                            cornerRadius = 8f
-                            setStroke(4, Color.parseColor("#757575"))
-                        }
-                        button.background = drawable
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "generateChallengeButtons: Error populating puzzle buttons", e)
+        try {
+            val selectedColors = availablePool.shuffled().toMutableList()
+            if (!selectedColors.contains(expectedAnswer)) {
+                selectedColors[0] = expectedAnswer
+                selectedColors.shuffle()
             }
+            val textColorAssignment = simpleCyclicDerangement(selectedColors)
+
+            runOnUiThread {
+                val buttonBgColor = Color.parseColor("#CCCCCC")
+                answerButtons.forEachIndexed { index, button ->
+                    val labelColor = selectedColors[index]
+                    button.text = labelColor
+                    button.setTextSize(
+                        TypedValue.COMPLEX_UNIT_SP,
+                        calculateFontSizeForWord(labelColor)
+                    )
+                    button.typeface = ResourcesCompat.getFont(
+                        this@StroopLockActivity,
+                        R.font.open_sans_extrabold
+                    )
+
+                    val assignedHex = colorMap[textColorAssignment[index]] ?: "#000000"
+                    val textColor = Color.parseColor(assignedHex)
+                    button.setTextColor(textColor)
+
+                    Log.d(
+                        TAG,
+                        "generateButtons: index=$index label=$labelColor textColor=$assignedHex"
+                    )
+
+                    val drawable = GradientDrawable().apply {
+                        setColor(buttonBgColor)
+                        cornerRadius = 8f
+                        setStroke(4, Color.parseColor("#757575"))
+                    }
+                    button.background = drawable
+
+                    // Also remove any Material tint
+                    button.backgroundTintList = null
+                    button.backgroundTintMode = null
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "generateChallengeButtons: Error populating puzzle buttons", e)
         }
     }
 
-    private fun handleButtonClick(button: Button, selectedColor: String, buttonIndex: Int) {
+    private fun handleButtonClick(button: Button, selectedColor: String) {
         if (buttonCooldownActive) return
         buttonCooldownActive = true
 
@@ -307,7 +326,7 @@ class StroopLockActivity : AppCompatActivity() {
             if (selectedColor == expectedAnswer) {
                 Log.i(TAG, "handleButtonClick: CORRECT. The user found the color=$selectedColor")
                 Toast.makeText(this, "Correct!", Toast.LENGTH_SHORT).show()
-                launchLockedApp()
+                launchLockedApp(lockedPackageToLaunch)
             } else {
                 Log.d(TAG, "handleButtonClick: INCORRECT. Regenerating puzzle.")
                 Toast.makeText(this, "Incorrect! Try again.", Toast.LENGTH_SHORT).show()
@@ -318,27 +337,46 @@ class StroopLockActivity : AppCompatActivity() {
         }, 500)
     }
 
-    private fun launchLockedApp() {
-        if (lockedPackageToLaunch == null) {
+    private fun launchLockedApp(packageName: String?) {
+        if (packageName == null) {
             Log.w(TAG, "launchLockedApp: No locked app selected; puzzle finishes here.")
             Toast.makeText(this, "No locked app selected!", Toast.LENGTH_SHORT).show()
             return
         }
+
         try {
-            val launchIntent = packageManager.getLaunchIntentForPackage(lockedPackageToLaunch!!)
-            if (launchIntent != null) {
-                Log.d(TAG, "launchLockedApp: Starting activity for $lockedPackageToLaunch")
-                startActivity(launchIntent)
-                // Optionally finish, so the user sees the locked app
-                finish()
-            } else {
-                Log.w(TAG, "launchLockedApp: Unable to launch $lockedPackageToLaunch")
-                Toast.makeText(this, "Unable to launch $lockedPackageToLaunch", Toast.LENGTH_SHORT)
-                    .show()
+            // 1) Attempt the standard approach
+            val directIntent = packageManager.getLaunchIntentForPackage(packageName)
+            if (directIntent != null) {
+                Log.d(
+                    TAG,
+                    "launchLockedApp: Starting activity via getLaunchIntentForPackage => $packageName"
+                )
+                startActivity(directIntent)
+                finish() // optional
+                return
             }
+
+            // 2) Fallback approach with ACTION_MAIN + CATEGORY_LAUNCHER
+            val fallbackIntent = Intent(Intent.ACTION_MAIN).apply {
+                addCategory(Intent.CATEGORY_LAUNCHER)
+                this.`package` = packageName
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            val resolveInfo = packageManager.resolveActivity(fallbackIntent, 0)
+            if (resolveInfo != null) {
+                Log.d(TAG, "launchLockedApp: Starting fallback activity => $packageName")
+                startActivity(fallbackIntent)
+                finish() // optional
+                return
+            }
+
+            // If both attempts fail:
+            Log.w(TAG, "launchLockedApp: Unable to launch $packageName")
+            Toast.makeText(this, "Unable to launch $packageName", Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
-            Log.e(TAG, "launchLockedApp: Error launching $lockedPackageToLaunch", e)
-            Toast.makeText(this, "Error launching $lockedPackageToLaunch", Toast.LENGTH_SHORT).show()
+            Log.e(TAG, "launchLockedApp: Error launching $packageName", e)
+            Toast.makeText(this, "Error launching $packageName", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -352,6 +390,7 @@ class StroopLockActivity : AppCompatActivity() {
         startActivityForResult(intent, REQUEST_CODE_PICK_APP)
     }
 
+    @Deprecated("Deprecated in Java")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == REQUEST_CODE_PICK_APP && resultCode == Activity.RESULT_OK) {
@@ -361,14 +400,17 @@ class StroopLockActivity : AppCompatActivity() {
                 Log.d(TAG, "Locked app set to: $chosenPackage")
                 Toast.makeText(this, "Locked app set to: $chosenPackage", Toast.LENGTH_SHORT).show()
 
-                // Insert into DB
-                repository.addLockedApp(chosenPackage)
+                // Insert into DB on background thread:
+                CoroutineScope(Dispatchers.IO).launch {
+                    repository.addLockedApp(chosenPackage)
 
-                // Also set lockedPackageToLaunch so puzzle can open it immediately if user solves
-                lockedPackageToLaunch = chosenPackage
+                    // Also set lockedPackageToLaunch so puzzle can open it immediately if user solves
+                    lockedPackageToLaunch = chosenPackage
 
-                val allLocked = repository.getAllLockedApps()
-                Log.d(TAG, "onActivityResult: lockedApps now = $allLocked")
+                    // Optionally read back for debugging:
+                    val allLocked = repository.getAllLockedApps()
+                    Log.d(TAG, "onActivityResult: lockedApps now = $allLocked")
+                }
             }
         }
     }

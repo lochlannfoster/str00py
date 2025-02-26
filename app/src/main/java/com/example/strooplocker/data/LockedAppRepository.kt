@@ -1,16 +1,21 @@
 package com.example.strooplocker.data
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
 class LockedAppsRepository(private val dao: LockedAppDao) {
 
-    fun getAllLockedApps(): List<String> {
-        return dao.getAllLockedApps().map { it.packageName }
+    // Now a suspending function
+    suspend fun getAllLockedApps(): List<String> = withContext(Dispatchers.IO) {
+        dao.getAllLockedApps().map { it.packageName }
     }
 
-    fun addLockedApp(packageName: String) {
+    // Also a suspending function
+    suspend fun addLockedApp(packageName: String) = withContext(Dispatchers.IO) {
         dao.insertLockedApp(LockedApp(packageName))
     }
 
-    fun removeLockedApp(packageName: String) {
+    suspend fun removeLockedApp(packageName: String) = withContext(Dispatchers.IO) {
         dao.deleteLockedApp(LockedApp(packageName))
     }
 }
