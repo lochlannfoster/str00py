@@ -2,6 +2,7 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.example.strooplocker">
 
+<<<<<<< Updated upstream
     <!-- Place <queries> as a direct child of <manifest> -->
     <queries>
         <intent>
@@ -10,10 +11,13 @@
         </intent>
     </queries>
 
+=======
+>>>>>>> Stashed changes
     <application
         android:name=".MyApplication"
         android:allowBackup="true"
         android:label="@string/app_name"
+<<<<<<< Updated upstream
         android:theme="@style/Theme.Strooplocker">
 
         <!-- Your activities, services, etc. go here -->
@@ -21,13 +25,28 @@
         <activity
             android:name=".StroopLockActivity"
             android:exported="true">
+=======
+        android:theme="@style/Theme.StroopLocker">
+
+        <!-- StroopLockActivity with singleTask or singleTop, etc. -->
+        <activity
+            android:name=".StroopLockActivity"
+            android:label="@string/app_name"
+            android:launchMode="singleTask"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:theme="@style/Theme.AppCompat.Light.NoActionBar">
+>>>>>>> Stashed changes
             <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.DEFAULT"/>
             </intent-filter>
         </activity>
 
+<<<<<<< Updated upstream
         <!-- The crucial Accessibility Service with directBootAware -->
+=======
+>>>>>>> Stashed changes
         <service
             android:name=".StroopAccessibilityService"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
@@ -35,13 +54,17 @@
             android:directBootAware="true"
             android:label="@string/accessibility_service_label">
             <intent-filter>
-                <action android:name="android.accessibilityservice.AccessibilityService" />
+                <action android:name="android.accessibilityservice.AccessibilityService"/>
             </intent-filter>
+            <!-- The meta-data points to the separate XML file: -->
             <meta-data
                 android:name="android.accessibilityservice"
-                android:resource="@xml/accessibility_service_config" />
+                android:resource="@xml/accessibility_service_config"/>
         </service>
 
+<<<<<<< Updated upstream
+=======
+        <!-- If you have a device admin or anything else, omitted here for brevity. -->
+>>>>>>> Stashed changes
     </application>
-
 </manifest>

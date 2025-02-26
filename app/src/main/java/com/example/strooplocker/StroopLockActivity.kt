@@ -29,6 +29,7 @@ import kotlinx.coroutines.withContext
 
 class StroopLockActivity : AppCompatActivity() {
 
+<<<<<<< Updated upstream
     companion object {
         private const val TAG = "StroopLockActivity"
         private const val REQUEST_CODE_PICK_APP = 2001
@@ -38,13 +39,17 @@ class StroopLockActivity : AppCompatActivity() {
     private lateinit var repository: LockedAppsRepository
 
     // UI references
+=======
+    private val TAG = "StroopLockActivity"
+
+    // UI
+>>>>>>> Stashed changes
     private lateinit var challengeText: TextView
     private lateinit var answerGrid: GridLayout
     private lateinit var rootLayout: ConstraintLayout
     private lateinit var exitButton: Button
     private lateinit var selectAppButton: Button
     private lateinit var enableAccessibilityButton: Button
-
     private lateinit var answerButtons: MutableList<Button>
 
     // The puzzle’s correct color to pick
@@ -52,27 +57,38 @@ class StroopLockActivity : AppCompatActivity() {
 
     // Map color name -> hex
     private val colorMap = mapOf(
-        "Red" to "#FF0000",
-        "Green" to "#00FF00",
-        "Blue" to "#3366FF",
+        "Red"    to "#FF0000",
+        "Green"  to "#00FF00",
+        "Blue"   to "#3366FF",
         "Yellow" to "#CCFF33",
-        "Pink" to "#FF66FF",
+        "Pink"   to "#FF66FF",
         "Orange" to "#FF6600",
-        "Brown" to "#FF8000",
-        "Cyan" to "#00FFFF",
+        "Brown"  to "#FF8000",
+        "Cyan"   to "#00FFFF",
         "Purple" to "#8A00E6"
     )
+<<<<<<< Updated upstream
     private val availablePool = colorMap.keys.toList()
 
     @Volatile
     private var buttonCooldownActive = false
+=======
+    private val availablePool: List<String> = colorMap.keys.toList()
+
+    private var expectedAnswer = ""
+    @Volatile private var buttonCooldownActive = false
+>>>>>>> Stashed changes
 
     // The package we want to open after puzzle success
     private var lockedPackageToLaunch: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+<<<<<<< Updated upstream
         Log.d(TAG, "onCreate: Entered.")
+=======
+        Log.d(TAG, "onCreate => launching puzzle UI!")
+>>>>>>> Stashed changes
         setContentView(R.layout.activity_stroop_lock)
 
         // Initialize DB + repository
@@ -101,8 +117,16 @@ class StroopLockActivity : AppCompatActivity() {
         challengeText = findViewById(R.id.challengeText)
         answerGrid = findViewById(R.id.answerGrid)
         exitButton = findViewById(R.id.exitButton)
+<<<<<<< Updated upstream
         selectAppButton = findViewById(R.id.selectAppButton)
         enableAccessibilityButton = findViewById(R.id.enableAccessibilityButton)
+=======
+        styleMenuButton(exitButton, Color.parseColor("#CCCCCC"), Color.parseColor("#212121"))
+        exitButton.setOnClickListener {
+            // Mark puzzle incomplete, go home
+            StroopAccessibilityService.challengeInProgress = false
+            StroopAccessibilityService.pendingLockedPackage = null
+>>>>>>> Stashed changes
 
         // Style
         rootLayout.setBackgroundColor(Color.parseColor("#F0F0F0"))
@@ -125,20 +149,37 @@ class StroopLockActivity : AppCompatActivity() {
             finishAffinity()
         }
 
+<<<<<<< Updated upstream
         // Let user pick an app to lock
         selectAppButton.setOnClickListener {
             Log.d(TAG, "selectAppButton clicked: picking an app from launcher.")
             pickAppFromLauncher()
         }
+=======
+        selectAppButton = findViewById(R.id.selectAppButton)
+        styleMenuButton(selectAppButton, Color.parseColor("#CCCCCC"), Color.parseColor("#212121"))
+        selectAppButton.setOnClickListener { pickAppFromLauncher() }
+>>>>>>> Stashed changes
 
         // Accessibility
         enableAccessibilityButton.setOnClickListener {
+<<<<<<< Updated upstream
             Log.d(TAG, "enableAccessibilityButton clicked: opening Accessibility Settings.")
             val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
             startActivity(intent)
         }
 
         // Build puzzle buttons (3x3)
+=======
+            if (!isAccessibilityServiceEnabled()) {
+                startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            } else {
+                Toast.makeText(this, "Accessibility is already enabled!", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        // Create 3x3 answer buttons
+>>>>>>> Stashed changes
         answerButtons = mutableListOf()
         answerGrid.columnCount = 3
         answerGrid.rowCount = 3
@@ -153,8 +194,12 @@ class StroopLockActivity : AppCompatActivity() {
             answerGrid.addView(btn)
             answerButtons.add(btn)
         }
+<<<<<<< Updated upstream
 
         // Ensure squares after layout
+=======
+        // Make them square
+>>>>>>> Stashed changes
         answerGrid.post {
             answerButtons.forEach { button ->
                 val size = button.width
@@ -163,12 +208,18 @@ class StroopLockActivity : AppCompatActivity() {
                 button.layoutParams = lp
             }
         }
+<<<<<<< Updated upstream
 
         // Puzzle button clicks
         answerButtons.forEach { button ->
             button.setOnClickListener {
                 val chosenColor = button.text.toString()
                 handleButtonClick(button, chosenColor)
+=======
+        answerButtons.forEachIndexed { index, button ->
+            button.setOnClickListener {
+                handleButtonClick(button, button.text.toString(), index)
+>>>>>>> Stashed changes
             }
         }
 
@@ -178,6 +229,7 @@ class StroopLockActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+<<<<<<< Updated upstream
         Log.d(TAG, "onResume: Checking if Accessibility is enabled.")
         if (!isAccessibilityServiceEnabled(this, StroopAccessibilityService::class.java)) {
             Log.w(TAG, "onResume: Stroop Accessibility Service is NOT enabled.")
@@ -377,13 +429,19 @@ class StroopLockActivity : AppCompatActivity() {
         } catch (e: Exception) {
             Log.e(TAG, "launchLockedApp: Error launching $packageName", e)
             Toast.makeText(this, "Error launching $packageName", Toast.LENGTH_SHORT).show()
+=======
+        Log.d(TAG, "onResume => puzzle is visible, challengeInProgress=${StroopAccessibilityService.challengeInProgress}")
+
+        if (StroopAccessibilityService.challengeInProgress) {
+            // Optionally re-generate puzzle if needed
+            applyChallenge()
+>>>>>>> Stashed changes
         }
     }
 
     private fun pickAppFromLauncher() {
         val intent = Intent(Intent.ACTION_PICK_ACTIVITY).apply {
-            putExtra(
-                Intent.EXTRA_INTENT,
+            putExtra(Intent.EXTRA_INTENT,
                 Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
             )
         }
@@ -396,9 +454,19 @@ class StroopLockActivity : AppCompatActivity() {
         if (requestCode == REQUEST_CODE_PICK_APP && resultCode == Activity.RESULT_OK) {
             val component = data?.component
             if (component != null) {
+<<<<<<< Updated upstream
                 val chosenPackage = component.packageName
                 Log.d(TAG, "Locked app set to: $chosenPackage")
                 Toast.makeText(this, "Locked app set to: $chosenPackage", Toast.LENGTH_SHORT).show()
+=======
+                val newLockedApp = component.packageName
+                LockManager.addLockedApp(this, newLockedApp)
+                Toast.makeText(this, "Locked app added: $newLockedApp", Toast.LENGTH_SHORT).show()
+                Log.d(TAG, "Added locked app => $newLockedApp")
+            }
+        }
+    }
+>>>>>>> Stashed changes
 
                 // Insert into DB on background thread:
                 CoroutineScope(Dispatchers.IO).launch {
@@ -411,10 +479,102 @@ class StroopLockActivity : AppCompatActivity() {
                     val allLocked = repository.getAllLockedApps()
                     Log.d(TAG, "onActivityResult: lockedApps now = $allLocked")
                 }
+<<<<<<< Updated upstream
+=======
+                val textColorAssignment = simpleCyclicDerangement(selectedColors)
+
+                withContext(Dispatchers.Main) {
+                    val buttonBgColor = Color.parseColor("#CCCCCC")
+                    answerButtons.forEachIndexed { index, button ->
+                        val labelColor = selectedColors[index]
+                        button.text = labelColor
+                        button.setTextSize(
+                            TypedValue.COMPLEX_UNIT_SP,
+                            calculateFontSizeForWord(labelColor)
+                        )
+                        button.typeface =
+                            ResourcesCompat.getFont(this@StroopLockActivity, R.font.open_sans_extrabold)
+
+                        val assignedHex = colorMap[textColorAssignment[index]] ?: "#000000"
+                        val textColor = Color.parseColor(assignedHex)
+                        button.setTextColor(textColor)
+
+                        val drawable = GradientDrawable().apply {
+                            setColor(buttonBgColor)
+                            cornerRadius = 8f
+                            setStroke(4, Color.parseColor("#757575"))
+                        }
+                        button.background = drawable
+                        button.invalidate()
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+>>>>>>> Stashed changes
             }
         }
     }
 
+<<<<<<< Updated upstream
+=======
+    private fun handleButtonClick(button: Button, selectedColor: String, buttonIndex: Int) {
+        if (buttonCooldownActive) return
+        buttonCooldownActive = true
+
+        val buttonBackgroundColor = Color.parseColor("#CCCCCC")
+        val bgDrawable = button.background as GradientDrawable
+        val originalTextColor = button.currentTextColor
+
+        bgDrawable.setColor(originalTextColor)
+        button.setTextColor(Color.parseColor("#212121"))
+
+        Handler(Looper.getMainLooper()).postDelayed({
+            bgDrawable.setColor(buttonBackgroundColor)
+            button.setTextColor(originalTextColor)
+
+            if (selectedColor == expectedAnswer) {
+                Toast.makeText(this, "Correct! Launching locked app...", Toast.LENGTH_SHORT).show()
+
+                // Mark puzzle done
+                StroopAccessibilityService.challengeInProgress = false
+
+                // Attempt to relaunch the locked package
+                val lockedPackage = StroopAccessibilityService.pendingLockedPackage
+                if (!lockedPackage.isNullOrEmpty()) {
+                    try {
+                        val launchIntent = packageManager.getLaunchIntentForPackage(lockedPackage)
+                        if (launchIntent != null) {
+                            Log.d(TAG, "Launching locked package: $lockedPackage")
+                            startActivity(launchIntent)
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        Toast.makeText(this, "Unable to launch $lockedPackage", Toast.LENGTH_SHORT).show()
+                    } finally {
+                        StroopAccessibilityService.pendingLockedPackage = null
+                    }
+                }
+                finish()
+            } else {
+                Toast.makeText(this, "Incorrect! Try again.", Toast.LENGTH_SHORT).show()
+                applyChallenge()
+            }
+
+            buttonCooldownActive = false
+        }, 500)
+    }
+
+    private fun styleMenuButton(button: Button, backgroundColor: Int, textColor: Int) {
+        val drawable = GradientDrawable().apply {
+            setColor(backgroundColor)
+            cornerRadius = 8f
+            setStroke(4, Color.parseColor("#757575"))
+        }
+        button.background = drawable
+        button.setTextColor(textColor)
+    }
+
+>>>>>>> Stashed changes
     private fun <T> simpleCyclicDerangement(list: List<T>): List<T> {
         return if (list.size <= 1) list else list.drop(1) + list.first()
     }
