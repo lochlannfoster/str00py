@@ -1,4 +1,4 @@
-# StroopLocker
+# StroopLocker aka Str00py
 
 **StroopLocker** aims to be a productivity tool to specifically counter your urges for doomscrolling your phone. The idea is to encourage you to challenge your consciousness before being granted to apps. 
 It's Android app that briefly displays a double Stroop-style color challenge before allowing the user to access a chosen locked app. It presents a word in one color and requires the user to identify the ink color (not the text label). The user must correctly tap the matching color label from a grid of mismatched label-text pairs to pass.
