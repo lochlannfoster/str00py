@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <attr format="color" name="colorBackground"/>
+    <color name="backgroundLight">@color/white</color>
+    <color name="black">#000000</color>
+    <color name="colorAccent">@color/teal_200</color>
+    <color name="colorPrimary">@color/purple_500</color>
+    <color name="colorPrimaryDark">@color/purple_700</color>
+    <color name="onBackgroundLight">@color/black</color>
+    <color name="purple_200">#BB86FC</color>
+    <color name="purple_500">#6200EE</color>
+    <color name="purple_700">#3700B3</color>
+    <color name="teal_200">#03DAC5</color>
+    <color name="teal_700">#018786</color>
+    <color name="white">#FFFFFF</color>
+    <string name="accessibility_service_description">Monitors app launches to prevent mindless scrolling</string>
+    <string name="accessibility_service_label">Stroop Lock Service</string>
+    <string name="app_description">Lock apps behind a cognitive challenge to prevent mindless scrolling</string>
+    <string name="app_locked">Locked app set to: %s</string>
+    <string name="app_name">StroopLocker</string>
+    <string name="correct_answer">Correct!</string>
+    <string name="enable_accessibility">Enable Service</string>
+    <string name="exit">Exit</string>
+    <string name="incorrect_answer">Incorrect! Try again.</string>
+    <string name="no_locked_app">No locked app selected!</string>
+    <string name="select_app">Select App to Lock</string>
+    <string name="service_not_enabled">Stroop Accessibility Service is NOT enabled. Tap \'Enable Service\' if you wish to activate it.</string>
+    <string name="settings">Settings</string>
+    <string name="stats">Stats</string>
+    <string name="unable_to_launch">Unable to launch %s</string>
+    <style name="Theme.Strooplocker" parent="Theme.MaterialComponents.DayNight.DarkActionBar">
+        
+
+        
+        <item name="android:buttonTint">@null</item>
+        <item name="materialButtonStyle">@style/Widget.Strooplocker.NoTintButton</item>
+    </style>
+    <style name="Widget.Strooplocker.NoTintButton" parent="@style/Widget.MaterialComponents.Button">
+        
+        <item name="android:backgroundTint">@null</item>
+        <item name="android:backgroundTintMode">src_over</item>
+    </style>
+</resources>
