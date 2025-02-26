@@ -4,4 +4,8 @@
     <string name="settings">Settings</string>
     <string name="stats">Stats</string>
     <string name="exit">Exit</string>
+    <string name="app_description">Some description here"</string>
+    <string name="accessibility_service_label">Stroop Lock Service</string>
+    <string name="accessibility_service_description">Accessibility service for Stroop Locker</string>
+
 </resources>
