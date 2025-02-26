@@ -35,6 +35,10 @@ It's Android app that briefly displays a double Stroop-style color challenge bef
 ### Regrets, for now
 Unfortunately, I personally  struggle to create a functioning software in a timeframe that suits my attention-span, so large parts of this repo remain authored by LLMs. I would be thrilled to see any and all changes the open-source community would suggest.
 
+It is also practically impossible to complete these challenges while intoxicated, so you might wish to disable the app or the accessibility service if you plan on drinking and using e.g. Instagram for photos of your night. Or, maybe it'd do you a favour to keep things as offline as possible.
+
+I just wanted to get this over the line in a vaguely functioning state, this is awful code and probably should not be run on your phone yet.
+
 
 ### License
 Licensed under GPL 2.0.
