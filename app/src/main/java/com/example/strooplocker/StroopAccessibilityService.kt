@@ -57,8 +57,10 @@ class StroopAccessibilityService : AccessibilityService() {
                 Log.i(TAG, "Launching StroopLockActivity for locked package: $packageName")
                 val lockIntent = Intent(this, StroopLockActivity::class.java).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    putExtra("LOCKED_TARGET_PACKAGE", packageName)
                 }
                 startActivity(lockIntent)
+
             }
         }
     }
