@@ -1,12 +1,12 @@
-/home/loch/AndroidStudioProjects/Strooplocker/app/src/main/java/com/example/strooplocker/data/LockedApp.kt
 /home/loch/AndroidStudioProjects/Strooplocker/app/src/main/java/com/example/strooplocker/StroopLockViewModel.kt
+/home/loch/AndroidStudioProjects/Strooplocker/app/src/main/java/com/example/strooplocker/data/LockedApp.kt
 /home/loch/AndroidStudioProjects/Strooplocker/app/src/main/java/com/example/strooplocker/ChallengeManager.kt
 /home/loch/AndroidStudioProjects/Strooplocker/app/src/main/java/com/example/strooplocker/StroopAccessibilityService.kt
 /home/loch/AndroidStudioProjects/Strooplocker/app/src/main/java/com/example/strooplocker/SelectAppsActivity.kt
 /home/loch/AndroidStudioProjects/Strooplocker/app/src/main/java/com/example/strooplocker/StroopDeviceAdminReceiver.kt
 /home/loch/AndroidStudioProjects/Strooplocker/app/src/main/java/com/example/strooplocker/MyApplication.kt
 /home/loch/AndroidStudioProjects/Strooplocker/app/src/main/java/com/example/strooplocker/data/LockedAppRepository.kt
-/home/loch/AndroidStudioProjects/Strooplocker/app/src/main/java/com/example/strooplocker/data/LockedAppDatabase.kt
 /home/loch/AndroidStudioProjects/Strooplocker/app/src/main/java/com/example/strooplocker/data/LockedAppDao.kt
-/home/loch/AndroidStudioProjects/Strooplocker/app/src/main/java/com/example/strooplocker/StroopLockActivity.kt
+/home/loch/AndroidStudioProjects/Strooplocker/app/src/main/java/com/example/strooplocker/data/LockedAppDatabase.kt
 /home/loch/AndroidStudioProjects/Strooplocker/app/src/main/java/com/example/strooplocker/LockManager.kt
+/home/loch/AndroidStudioProjects/Strooplocker/app/src/main/java/com/example/strooplocker/StroopLockActivity.kt

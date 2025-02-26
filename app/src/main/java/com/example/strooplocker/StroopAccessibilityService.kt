@@ -58,7 +58,7 @@ class StroopAccessibilityService : AccessibilityService() {
         val packageName = event.packageName?.toString() ?: return
 
         // Ignore our own app
-        if (packageName == packageName("com.example.strooplocker")) return
+        if (packageName == "com.example.strooplocker") return
 
         // Check if the package is in the locked apps list
         CoroutineScope(Dispatchers.IO).launch {
