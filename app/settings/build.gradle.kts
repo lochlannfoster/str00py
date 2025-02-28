@@ -29,7 +29,7 @@ android {
     }
 
     buildFeatures {
-        buildConfig = true // This fixes the deprecation warning
+        buildConfig = true
     }
 
     compileOptions {

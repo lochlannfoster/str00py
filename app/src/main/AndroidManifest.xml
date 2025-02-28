@@ -18,6 +18,10 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:theme="@style/Theme.Strooplocker">
 
+        <activity
+            android:name=".StroopChallengeActivity"
+            android:exported="false" />
+
         <!-- Main activities -->
         <activity
             android:name=".StroopLockActivity"
