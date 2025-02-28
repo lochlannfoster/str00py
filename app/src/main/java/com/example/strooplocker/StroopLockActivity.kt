@@ -85,7 +85,6 @@ class StroopLockActivity : AppCompatActivity() {
 
 
 
->>>>>>> 21bc4e8 (fail)
     /**
      * Shifts the first element of the list to the end, simulating a cyclic derangement.
      */
