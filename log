@@ -1,0 +1,25 @@
+--------- beginning of main
+--------- beginning of system
+
+[23:14:13.383] I ActivityTaskManager (system_server): START u0 {cmp=com.example.strooplocker/.StroopLockActivity, LAUNCH_MULTIPLE, extras} from uid 10209 (BAL_ALLOW_SAW_PERMISSION) → result code 0
+
+[23:14:13.390] V WindowManagerShell (system_ui): Transition requested (#15) for StroopLockActivity (details omitted)
+[23:14:13.391] I TopTaskTracker: Task 15 moved to front (StroopLockActivity)
+[23:14:13.927] V WindowManager (system_server): Sent Transition (#15) for StroopLockActivity
+
+[23:14:13.959] E TransactionExecutor: Failed to execute transaction (tId:-417400527) for StroopLockActivity
+--------- beginning of crash
+[23:14:13.973] E AndroidRuntime: FATAL EXCEPTION in process com.example.strooplocker (PID:1725) – Unable to start StroopLockActivity: IndexOutOfBoundsException (Index 7 out of bounds for length 7) [Stack trace omitted]
+
+[23:14:14.038] W ActivityTaskManager: Force finishing StroopLockActivity
+
+[23:14:15.403] V WindowManagerShell (system_ui): Transition requested (#17) for StroopLockActivity (details omitted)
+[23:14:15.404] I ActivityTaskManager (system_server): START u0 {cmp=com.example.strooplocker/.StroopLockActivity, LAUNCH_MULTIPLE, extras} from uid 10209 → result code 0
+[23:14:15.405] I TopTaskTracker: Task 16 moved to front (StroopLockActivity)
+[23:14:15.484] V WindowManager (system_server): Sent Transition (#17) for StroopLockActivity
+
+[23:14:15.600] E TransactionExecutor: Failed to execute transaction (tId:-1538269154) for StroopLockActivity
+[23:14:15.601] E AndroidRuntime: FATAL EXCEPTION in process com.example.strooplocker (PID:3744) – Unable to start StroopLockActivity: IndexOutOfBoundsException (Index 7 out of bounds for length 7) [Stack trace omitted]
+[23:14:15.604] W ActivityTaskManager: Force finishing StroopLockActivity
+[23:14:16.105] W ActivityTaskManager: Activity top resumed state loss & pause timeout for StroopLockActivity
+
