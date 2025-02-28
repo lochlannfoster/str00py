@@ -1,32 +1,30 @@
 package com.example.strooplocker
 
+import android.accessibilityservice.AccessibilityServiceInfo
+import android.app.AlertDialog
+import android.content.Context
 import android.content.Intent
 import android.graphics.Color
+import android.net.Uri
 import android.os.Bundle
+import android.provider.Settings
 import android.util.Log
-import android.view.View
+import android.view.accessibility.AccessibilityManager
 import android.widget.Button
 import android.widget.GridLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.lifecycle.ViewModelProvider
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
-/**
- * StroopLockActivity is the main entry point of the app.
- * It displays a cognitive challenge (Stroop test) that must be passed
- * before the user can access a locked app.
- */
 class StroopLockActivity : AppCompatActivity() {
 
     companion object {
         const val TAG = "StroopLockActivity"
         const val EXTRA_LOCKED_PACKAGE = "extra_locked_package"
         const val REQUEST_CODE_PICK_APP = 1001
+        const val REQUEST_CODE_ACCESSIBILITY = 1002
+        const val REQUEST_CODE_OVERLAY = 1003
+
         // Exposed so other classes can read the set if needed
         val completedChallenges = mutableSetOf<String>()
     }
@@ -34,6 +32,7 @@ class StroopLockActivity : AppCompatActivity() {
     // Challenge UI elements
     private lateinit var challengeText: TextView
     private lateinit var answerGrid: GridLayout
+    private lateinit var enableAccessibilityButton: Button
 
     // Maps color names to their RGB values
     private val colorMap = mapOf(
@@ -58,7 +57,18 @@ class StroopLockActivity : AppCompatActivity() {
 
         // Initialize UI components and logic
         initUI()
+
+        // Check permissions and setup status
+        checkAndRequestPermissions()
+
+        // Handle intent if one was provided
         handleIntent(intent)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Refresh permission status whenever the activity resumes
+        updatePermissionStatus()
     }
 
     private fun initUI() {
@@ -80,11 +90,172 @@ class StroopLockActivity : AppCompatActivity() {
             startActivity(intent)
         }
 
-        findViewById<Button>(R.id.enableAccessibilityButton)?.setOnClickListener {
+        enableAccessibilityButton = findViewById(R.id.enableAccessibilityButton)
+        enableAccessibilityButton.setOnClickListener {
             Log.d(TAG, "Enable accessibility button clicked")
-            val intent = Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS)
-            startActivity(intent)
+            showPermissionsGuide()
         }
+    }
+
+    private fun checkAndRequestPermissions() {
+        Log.d(TAG, "Checking app permissions and setup status")
+
+        // Check if this is the first launch
+        val prefs = getSharedPreferences("stroop_prefs", Context.MODE_PRIVATE)
+        val isFirstLaunch = prefs.getBoolean("is_first_launch", true)
+
+        if (isFirstLaunch) {
+            // Show initial setup dialog
+            showWelcomeDialog()
+
+            // Mark that first launch has been done
+            prefs.edit().putBoolean("is_first_launch", false).apply()
+        } else {
+            // Just update UI based on current permission status
+            updatePermissionStatus()
+        }
+    }
+
+    private fun showWelcomeDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("Welcome to StroopLocker")
+            .setMessage("This app helps prevent mindless scrolling by requiring you to solve a quick cognitive challenge before using locked apps.\n\nTo get started, you'll need to grant a few permissions.")
+            .setPositiveButton("Get Started") { _, _ ->
+                showPermissionsGuide()
+            }
+            .setCancelable(false)
+            .show()
+    }
+
+    private fun showPermissionsGuide() {
+        // Check which permissions are needed
+        val accessibilityEnabled = isAccessibilityServiceEnabled()
+        val overlayPermissionGranted = Settings.canDrawOverlays(this)
+
+        // Build message based on missing permissions
+        val missingPermissions = mutableListOf<String>()
+
+        if (!accessibilityEnabled) {
+            missingPermissions.add("• Accessibility Service: Required to detect when you launch a locked app")
+        }
+
+        if (!overlayPermissionGranted) {
+            missingPermissions.add("• Display Over Other Apps: Required to show challenges over locked apps")
+        }
+
+        if (missingPermissions.isEmpty()) {
+            // All permissions granted
+            Toast.makeText(this, "All permissions are enabled!", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // Show dialog about missing permissions
+        val message = "Please enable the following permissions:\n\n" +
+                missingPermissions.joinToString("\n\n") +
+                "\n\nYou'll be guided through each permission."
+
+        AlertDialog.Builder(this)
+            .setTitle("Required Permissions")
+            .setMessage(message)
+            .setPositiveButton("Continue") { _, _ ->
+                startPermissionFlow()
+            }
+            .setNegativeButton("Later") { dialog, _ ->
+                dialog.dismiss()
+            }
+            .show()
+    }
+
+    private fun startPermissionFlow() {
+        // Start with accessibility permission if needed
+        if (!isAccessibilityServiceEnabled()) {
+            showAccessibilityInstructions()
+        } else if (!Settings.canDrawOverlays(this)) {
+            // Accessibility is enabled, check overlay permission
+            requestOverlayPermission()
+        }
+    }
+
+    private fun showAccessibilityInstructions() {
+        AlertDialog.Builder(this)
+            .setTitle("Enable Accessibility Service")
+            .setMessage("1. Find \"Stroop Lock Service\" in the list\n2. Toggle it ON\n3. Confirm in the dialog\n4. Return to this app")
+            .setPositiveButton("Open Settings") { _, _ ->
+                val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                startActivityForResult(intent, REQUEST_CODE_ACCESSIBILITY)
+            }
+            .setCancelable(false)
+            .show()
+    }
+
+    private fun requestOverlayPermission() {
+        AlertDialog.Builder(this)
+            .setTitle("Display Over Other Apps")
+            .setMessage("StroopLocker needs permission to display challenges over other apps.")
+            .setPositiveButton("Continue") { _, _ ->
+                // Request system overlay permission
+                val intent = Intent(
+                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:$packageName")
+                )
+                startActivityForResult(intent, REQUEST_CODE_OVERLAY)
+            }
+            .setCancelable(false)
+            .show()
+    }
+
+    private fun isAccessibilityServiceEnabled(): Boolean {
+        val am = getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
+        val enabledServices = am.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK)
+
+        for (service in enabledServices) {
+            if (service.id.contains(packageName)) {
+                return true
+            }
+        }
+        return false
+    }
+
+    private fun updatePermissionStatus() {
+        // Update UI based on permission status
+        val accessibilityEnabled = isAccessibilityServiceEnabled()
+        val overlayPermissionGranted = Settings.canDrawOverlays(this)
+
+        // Update button text
+        if (accessibilityEnabled && overlayPermissionGranted) {
+            enableAccessibilityButton.text = "All Permissions OK"
+        } else {
+            enableAccessibilityButton.text = "Enable Permissions"
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+
+        // Check permission status after returning from system settings
+        when (requestCode) {
+            REQUEST_CODE_ACCESSIBILITY -> {
+                if (isAccessibilityServiceEnabled()) {
+                    Toast.makeText(this, "Accessibility service enabled!", Toast.LENGTH_SHORT).show()
+                    // Check if we need overlay permission next
+                    if (!Settings.canDrawOverlays(this)) {
+                        requestOverlayPermission()
+                    }
+                } else {
+                    Toast.makeText(this, "Accessibility service not enabled", Toast.LENGTH_LONG).show()
+                }
+            }
+            REQUEST_CODE_OVERLAY -> {
+                if (Settings.canDrawOverlays(this)) {
+                    Toast.makeText(this, "Overlay permission granted!", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this, "Overlay permission needed for full functionality", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+
+        // Update permission status UI
+        updatePermissionStatus()
     }
 
     private fun handleIntent(intent: Intent) {
@@ -189,6 +360,7 @@ class StroopLockActivity : AppCompatActivity() {
             answerGrid.addView(button)
         }
     }
+
     /**
      * Handles user selection of a color.
      * If correct, launches the locked app.
@@ -240,28 +412,6 @@ class StroopLockActivity : AppCompatActivity() {
         } catch (e: Exception) {
             Log.e(TAG, "Error launching app: $packageName", e)
             Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_LONG).show()
-        }
-    }
-
-    /**
-     * Shifts the first element of the list to the end, simulating a cyclic derangement.
-     */
-    private fun <T> simpleCyclicDerangement(list: List<T>): List<T> {
-        if (list.size <= 1) return list
-        val mutableList = list.toMutableList()
-        val first = mutableList.removeAt(0)
-        mutableList.add(first)
-        return mutableList
-    }
-
-    /**
-     * Calculates a font size based on the length of the provided word.
-     */
-    private fun calculateFontSizeForWord(word: String): Float {
-        return when {
-            word.length > 10 -> 18f
-            word.length > 5  -> 24f
-            else             -> 30f
         }
     }
 }

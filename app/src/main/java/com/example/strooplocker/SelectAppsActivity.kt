@@ -1,5 +1,6 @@
 package com.example.strooplocker
 
+import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.os.Bundle
@@ -42,85 +43,111 @@ class SelectAppsActivity : AppCompatActivity() {
     private fun loadInstalledApps() {
         lifecycleScope.launch {
             Log.d(TAG, "Loading installed apps")
-            val apps = withContext(Dispatchers.IO) {
-                // Get installed apps
-                val pm = packageManager
-                val flags = PackageManager.GET_META_DATA
-                val ourPackageName = packageName // Get our own package name
 
-                val installedApps = pm.getInstalledApplications(flags)
-                    .filter { app ->
-                        // Only show launchable apps that are not our own app
-                        val launchIntent = pm.getLaunchIntentForPackage(app.packageName)
-                        val isSystemApp = (app.flags and ApplicationInfo.FLAG_SYSTEM) != 0
+            try {
+                val apps = withContext(Dispatchers.IO) {
+                    // Get installed apps
+                    val pm = packageManager
+                    val ourPackageName = packageName
 
-                        // Debug loggimg
-                        Log.d(TAG, "App: ${app.packageName}")
-                        Log.d(TAG, "Launchable: ${launchIntent != null}")
-                        Log.d(TAG, "Is System App: $isSystemApp")
-                        Log.d(TAG, "Is Our App: ${app.packageName == ourPackageName}")
+                    Log.d(TAG, "Our package name: $ourPackageName")
 
-                        // Filter criteria: Must be launchable, not a system app, and not our own app
-                        launchIntent != null && !isSystemApp && app.packageName != ourPackageName
+                    val installedPackages = pm.getInstalledPackages(0)
+                    Log.d(TAG, "Total installed packages: ${installedPackages.size}")
+
+                    // First get all apps with launcher activities
+                    val launchableApps = mutableListOf<ApplicationInfo>()
+
+                    for (packageInfo in installedPackages) {
+                        val packageName = packageInfo.packageName
+
+                        try {
+                            val launchIntent = pm.getLaunchIntentForPackage(packageName)
+                            if (launchIntent != null) {
+                                // App has a launcher activity
+                                val appInfo = pm.getApplicationInfo(packageName, 0)
+                                val isSystemApp = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
+                                val isOurApp = packageName == ourPackageName
+
+                                Log.d(TAG, "Found launchable app: $packageName | System: $isSystemApp | Ours: $isOurApp")
+
+                                if (!isSystemApp && !isOurApp) {
+                                    launchableApps.add(appInfo)
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error processing package $packageName", e)
+                        }
                     }
-                    .sortedBy { app -> app.loadLabel(pm).toString() }
 
-                Log.d(TAG, "Total launchable non-system apps (excluding our app): ${installedApps.size}")
-                installedApps
-            }
+                    Log.d(TAG, "Final filtered apps count: ${launchableApps.size}")
 
-            // Check which apps are already locked
-            val lockedApps = withContext(Dispatchers.IO) {
-                Log.d(TAG, "Retrieving currently locked apps")
-                LockManager.getLockedApps(this@SelectAppsActivity)
-            }
+                    // Sort by app name
+                    launchableApps.sortedBy { app -> app.loadLabel(pm).toString() }
+                }
 
-            Log.d(TAG, "Currently locked apps:")
-            lockedApps.forEachIndexed { index, app ->
-                Log.d(TAG, "Locked App #$index: $app")
-            }
+                // Check which apps are already locked
+                val lockedApps = withContext(Dispatchers.IO) {
+                    Log.d(TAG, "Retrieving currently locked apps")
+                    LockManager.getLockedApps(this@SelectAppsActivity)
+                }
 
-            appsAdapter = AppsAdapter(apps, lockedApps.toSet()) { app, isLocked ->
-                onAppSelected(app, isLocked)
+                Log.d(TAG, "Currently locked apps: $lockedApps")
+
+                // Display results or message if no apps found
+                if (apps.isEmpty()) {
+                    Toast.makeText(this@SelectAppsActivity,
+                        "No lockable apps found on device",
+                        Toast.LENGTH_LONG).show()
+                    Log.w(TAG, "No apps available to lock - adapter not created")
+                } else {
+                    appsAdapter = AppsAdapter(apps, lockedApps.toSet()) { app, isLocked ->
+                        onAppSelected(app, isLocked)
+                    }
+                    recyclerView.adapter = appsAdapter
+                    Log.d(TAG, "Adapter set with ${apps.size} apps")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error loading apps", e)
+                Toast.makeText(this@SelectAppsActivity,
+                    "Error loading apps: ${e.message}",
+                    Toast.LENGTH_LONG).show()
             }
-            recyclerView.adapter = appsAdapter
         }
     }
 
     private fun onAppSelected(app: ApplicationInfo, isCurrentlyLocked: Boolean) {
         lifecycleScope.launch {
-            Log.d(TAG, "App selection changed")
-            Log.d(TAG, "Package: ${app.packageName}")
-            Log.d(TAG, "App Name: ${app.loadLabel(packageManager)}")
-            Log.d(TAG, "Currently Locked: $isCurrentlyLocked")
+            Log.d(TAG, "App selection changed - Package: ${app.packageName}, Currently Locked: $isCurrentlyLocked")
 
-            if (isCurrentlyLocked) {
-                // Unlock the app
-                LockManager.removeLockedApp(this@SelectAppsActivity, app.packageName)
-                Log.i(TAG, "App unlocked: ${app.packageName}")
+            try {
+                if (isCurrentlyLocked) {
+                    // Unlock the app
+                    LockManager.removeLockedApp(this@SelectAppsActivity, app.packageName)
+                    Toast.makeText(this@SelectAppsActivity,
+                        "Unlocked: ${app.loadLabel(packageManager)}",
+                        Toast.LENGTH_SHORT).show()
+                } else {
+                    // Lock the app
+                    LockManager.addLockedApp(this@SelectAppsActivity, app.packageName)
+                    Toast.makeText(this@SelectAppsActivity,
+                        "Locked: ${app.loadLabel(packageManager)}",
+                        Toast.LENGTH_SHORT).show()
+                }
+
+                // Refresh the list
+                val updatedLockedApps = withContext(Dispatchers.IO) {
+                    LockManager.getLockedApps(this@SelectAppsActivity)
+                }
+
+                Log.d(TAG, "Updated locked apps: $updatedLockedApps")
+                appsAdapter.updateLockedApps(updatedLockedApps.toSet())
+            } catch (e: Exception) {
+                Log.e(TAG, "Error updating app lock state", e)
                 Toast.makeText(this@SelectAppsActivity,
-                    "Unlocked: ${app.loadLabel(packageManager)}",
-                    Toast.LENGTH_SHORT).show()
-            } else {
-                // Lock the app
-                LockManager.addLockedApp(this@SelectAppsActivity, app.packageName)
-                Log.i(TAG, "App locked: ${app.packageName}")
-                Toast.makeText(this@SelectAppsActivity,
-                    "Locked: ${app.loadLabel(packageManager)}",
+                    "Error: ${e.message}",
                     Toast.LENGTH_SHORT).show()
             }
-
-            // Refresh the list
-            val updatedLockedApps = withContext(Dispatchers.IO) {
-                LockManager.getLockedApps(this@SelectAppsActivity)
-            }
-
-            Log.d(TAG, "Updated locked apps:")
-            updatedLockedApps.forEachIndexed { index, app ->
-                Log.d(TAG, "Locked App #$index: $app")
-            }
-
-            appsAdapter.updateLockedApps(updatedLockedApps.toSet())
         }
     }
 
