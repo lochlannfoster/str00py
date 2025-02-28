@@ -171,6 +171,9 @@ class StroopLockActivity : AppCompatActivity() {
             val textColorName = shuffledColors[textColorIndex]
             button.setTextColor(colorMap[textColorName] ?: Color.BLACK)
 
+            // Add shadow to create text stroke/outline effect
+            button.setShadowLayer(1.0f, 1.0f, 1.0f, Color.BLACK)
+
             // Make buttons evenly distributed
             val params = GridLayout.LayoutParams()
             params.width = 0
@@ -186,7 +189,6 @@ class StroopLockActivity : AppCompatActivity() {
             answerGrid.addView(button)
         }
     }
-
     /**
      * Handles user selection of a color.
      * If correct, launches the locked app.

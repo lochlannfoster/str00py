@@ -46,22 +46,26 @@ class SelectAppsActivity : AppCompatActivity() {
                 // Get installed apps
                 val pm = packageManager
                 val flags = PackageManager.GET_META_DATA
+                val ourPackageName = packageName // Get our own package name
 
                 val installedApps = pm.getInstalledApplications(flags)
                     .filter { app ->
-                        // Only show launchable apps with launcher activities
+                        // Only show launchable apps that are not our own app
                         val launchIntent = pm.getLaunchIntentForPackage(app.packageName)
                         val isSystemApp = (app.flags and ApplicationInfo.FLAG_SYSTEM) != 0
 
+                        // Debug loggimg
                         Log.d(TAG, "App: ${app.packageName}")
                         Log.d(TAG, "Launchable: ${launchIntent != null}")
                         Log.d(TAG, "Is System App: $isSystemApp")
+                        Log.d(TAG, "Is Our App: ${app.packageName == ourPackageName}")
 
-                        launchIntent != null && !isSystemApp
+                        // Filter criteria: Must be launchable, not a system app, and not our own app
+                        launchIntent != null && !isSystemApp && app.packageName != ourPackageName
                     }
                     .sortedBy { app -> app.loadLabel(pm).toString() }
 
-                Log.d(TAG, "Total launchable non-system apps: ${installedApps.size}")
+                Log.d(TAG, "Total launchable non-system apps (excluding our app): ${installedApps.size}")
                 installedApps
             }
 
