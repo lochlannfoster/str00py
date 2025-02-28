@@ -18,10 +18,6 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    buildFeatures {
-        buildConfig = true
-    }
-
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -32,36 +28,18 @@ android {
         }
     }
 
+    buildFeatures {
+        buildConfig = true // This fixes the deprecation warning
+    }
+
     compileOptions {
-        // This tells the Java compiler to generate Java 8 compatible bytecode
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
     }
 
     kotlinOptions {
-        // This tells the Kotlin compiler to generate Java 8 compatible bytecode
         jvmTarget = "1.8"
     }
-}
-
-    // Make sure kapt uses Java 8 for annotation processing
-    kapt {
-        javacOptions {
-            option("-source", "8")
-            option("-target", "8")
-        }
-    }
-}
-
-// Force kapt to use Java 8
-tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
-    kotlinOptions.jvmTarget = "1.8"
-}
-
-// This is the critical part for kapt
-project.tasks.withType(org.jetbrains.kotlin.gradle.internal.KaptWithoutKotlincTask::class.java) {
-    System.setProperty("java.home", System.getenv("JAVA_HOME_8") ?: System.getenv("JAVA_HOME"))
-    kotlinOptions.jvmTarget = "1.8"
 }
 
 dependencies {
