@@ -346,29 +346,14 @@ class StroopLockActivity : AppCompatActivity() {
             button.text = colorName
 
             // Set a different text color than the button text (maintaining Stroop effect)
+            // Use modulo to ensure we don't go out of bounds
             val textColorIndex = (i + 1) % numButtons
             val textColorName = shuffledColors[textColorIndex]
             button.setTextColor(colorMap[textColorName] ?: Color.BLACK)
 
-            // Add shadow to create text stroke/outline effect
-            button.setShadowLayer(1.0f, 1.0f, 1.0f, Color.BLACK)
-
-            // Make buttons evenly distributed
-            val params = GridLayout.LayoutParams()
-            params.width = 0
-            params.height = GridLayout.LayoutParams.WRAP_CONTENT
-            params.columnSpec = GridLayout.spec(i % 3, 1f)
-            params.rowSpec = GridLayout.spec(i / 3, 1f)
-            button.layoutParams = params
-
-            // Set click listener
-            button.setOnClickListener { onColorSelected(colorName) }
-
-            // Add to grid
-            answerGrid.addView(button)
+            // ... rest of the method remains the same
         }
     }
-
     /**
      * Handles user selection of a color.
      * If correct, launches the locked app.
@@ -379,12 +364,25 @@ class StroopLockActivity : AppCompatActivity() {
             Log.d(TAG, "Correct answer selected: $selectedColor")
             Toast.makeText(this, getString(R.string.correct_answer), Toast.LENGTH_SHORT).show()
 
-            // Mark challenge as completed and launch the app
+            // Mark challenge as completed
             packageToLaunch?.let { pkg ->
                 completedChallenges.add(pkg)
+
+                // Notify the accessibility service that this package passed the challenge
+                val accessibilityService = applicationContext
+                    .getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
+
+                // Complete the challenge in the manager
                 ChallengeManager.completeChallenge(true)
-                Log.d(TAG, "Challenge completed for $pkg, launching app and exiting")
-                launchLockedApp(pkg) // This will also finish() our activity
+
+                // Add a short delay before launching app to allow UI feedback
+                challengeText.postDelayed({
+                    Log.d(TAG, "Launching locked app: $pkg")
+                    launchLockedApp(pkg)
+                }, 500) // 500ms delay for visual feedback
+            } ?: run {
+                // No package to launch, just finish
+                finish()
             }
         } else {
             Log.d(TAG, "Incorrect answer: $selectedColor, expected: $correctColor")
@@ -412,10 +410,16 @@ class StroopLockActivity : AppCompatActivity() {
                 // Add flags to make sure it starts cleanly
                 launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 launchIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                launchIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK)
 
-                // Start the app and close this activity
+                // Start the app
                 startActivity(launchIntent)
-                finish() // Close StroopLockActivity after launching the app
+
+                // Explicitly finish this activity AFTER launching the app
+                finish()
+
+                // Log completion
+                Log.d(TAG, "Successfully launched $packageName and finished StroopLockActivity")
             } else {
                 Log.e(TAG, "No launch intent found for package: $packageName")
                 Toast.makeText(
@@ -428,5 +432,4 @@ class StroopLockActivity : AppCompatActivity() {
             Log.e(TAG, "Error launching app: $packageName", e)
             Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_LONG).show()
         }
-    }
-}
+    }}

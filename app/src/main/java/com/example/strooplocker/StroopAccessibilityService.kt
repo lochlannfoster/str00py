@@ -89,6 +89,8 @@ class StroopAccessibilityService : AccessibilityService() {
     // Remove the direct method call
     fun markChallengeCompleted(packageName: String) {
         completedChallenges.add(packageName)
+        challengeInProgress = false
+        pendingLockedPackage = null
         Log.d(TAG, "Challenge completed for: $packageName")
     }
 
