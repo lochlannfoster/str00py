@@ -71,6 +71,7 @@ class StroopLockActivity : AppCompatActivity() {
 
     private fun startChallenge(packageName: String) {
         Log.d(TAG, "Starting challenge for package: $packageName")
+<<<<<<< HEAD
         // Start the challenge activity (assumed to be StroopChallengeActivity)
         val intent = Intent(this, StroopChallengeActivity::class.java).apply {
             putExtra(EXTRA_LOCKED_PACKAGE, packageName)
@@ -78,6 +79,14 @@ class StroopLockActivity : AppCompatActivity() {
         startActivity(intent)
     }
 
+=======
+        // Delegate to ChallengeManager with just the packageName
+        ChallengeManager.startChallenge(packageName)
+    }
+
+
+
+>>>>>>> 21bc4e8 (fail)
     /**
      * Shifts the first element of the list to the end, simulating a cyclic derangement.
      */

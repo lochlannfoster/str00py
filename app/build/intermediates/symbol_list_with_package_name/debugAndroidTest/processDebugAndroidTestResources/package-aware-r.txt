@@ -1,3 +1,0 @@
-com.example.strooplocker.test
-style WhiteBackgroundDialogTheme
-style WhiteBackgroundTheme
