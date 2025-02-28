@@ -71,18 +71,17 @@ class StroopLockActivity : AppCompatActivity() {
 
     private fun startChallenge(packageName: String) {
         Log.d(TAG, "Starting challenge for package: $packageName")
-<<<<<<< HEAD
-        // Start the challenge activity (assumed to be StroopChallengeActivity)
+
+        // Track the challenge in ChallengeManager
+        ChallengeManager.startChallenge(packageName)
+
+        // Start the challenge activity
         val intent = Intent(this, StroopChallengeActivity::class.java).apply {
             putExtra(EXTRA_LOCKED_PACKAGE, packageName)
         }
         startActivity(intent)
     }
 
-=======
-        // Delegate to ChallengeManager with just the packageName
-        ChallengeManager.startChallenge(packageName)
-    }
 
 
 
