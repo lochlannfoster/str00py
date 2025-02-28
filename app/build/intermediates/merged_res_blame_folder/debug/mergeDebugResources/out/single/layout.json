@@ -1,0 +1,18 @@
+[
+    {
+        "merged": "com.example.strooplocker.app-mergeDebugResources-38:/layout/activity_main.xml",
+        "source": "com.example.strooplocker.app-main-41:/layout/activity_main.xml"
+    },
+    {
+        "merged": "com.example.strooplocker.app-mergeDebugResources-38:/layout/activity_stroop_lock.xml",
+        "source": "com.example.strooplocker.app-main-41:/layout/activity_stroop_lock.xml"
+    },
+    {
+        "merged": "com.example.strooplocker.app-mergeDebugResources-38:/layout/item_app.xml",
+        "source": "com.example.strooplocker.app-main-41:/layout/item_app.xml"
+    },
+    {
+        "merged": "com.example.strooplocker.app-mergeDebugResources-38:/layout/activity_select_apps.xml",
+        "source": "com.example.strooplocker.app-main-41:/layout/activity_select_apps.xml"
+    }
+]
