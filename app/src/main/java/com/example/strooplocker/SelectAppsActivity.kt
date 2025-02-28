@@ -18,6 +18,7 @@ import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 
 class SelectAppsActivity : AppCompatActivity() {
 
@@ -46,44 +47,65 @@ class SelectAppsActivity : AppCompatActivity() {
 
             try {
                 val apps = withContext(Dispatchers.IO) {
-                    // Get installed apps
                     val pm = packageManager
                     val ourPackageName = packageName
 
                     Log.d(TAG, "Our package name: $ourPackageName")
 
-                    val installedPackages = pm.getInstalledPackages(0)
-                    Log.d(TAG, "Total installed packages: ${installedPackages.size}")
+                    // Get all apps with launcher activities (user-visible apps)
+                    val launcherIntent = Intent(Intent.ACTION_MAIN)
+                    launcherIntent.addCategory(Intent.CATEGORY_LAUNCHER)
 
-                    // First get all apps with launcher activities
-                    val launchableApps = mutableListOf<ApplicationInfo>()
+                    val resolveInfoList = pm.queryIntentActivities(launcherIntent, 0)
+                    Log.d(TAG, "Found ${resolveInfoList.size} launchable apps")
 
-                    for (packageInfo in installedPackages) {
-                        val packageName = packageInfo.packageName
+                    // Process each app
+                    val userApps = mutableListOf<ApplicationInfo>()
 
+                    for (resolveInfo in resolveInfoList) {
+                        val appInfo = resolveInfo.activityInfo.applicationInfo
+                        val packageName = appInfo.packageName
+                        val isSystemApp = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
+
+                        // Skip our own app if we want to filter it out
+                        if (packageName == ourPackageName) {
+                            Log.d(TAG, "Skipping our app: $packageName")
+                            continue
+                        }
+
+                        // App name (for logging)
+                        val appName = appInfo.loadLabel(pm).toString()
+
+                        // Check if the app has user data (a good indicator for user-facing apps)
+                        var hasUserData = false
                         try {
-                            val launchIntent = pm.getLaunchIntentForPackage(packageName)
-                            if (launchIntent != null) {
-                                // App has a launcher activity
-                                val appInfo = pm.getApplicationInfo(packageName, 0)
-                                val isSystemApp = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
-                                val isOurApp = packageName == ourPackageName
-
-                                Log.d(TAG, "Found launchable app: $packageName | System: $isSystemApp | Ours: $isOurApp")
-
-                                if (!isSystemApp && !isOurApp) {
-                                    launchableApps.add(appInfo)
-                                }
-                            }
+                            val dataDir = File(appInfo.dataDir)
+                            hasUserData = dataDir.exists() && (dataDir.listFiles()?.isNotEmpty() == true)
                         } catch (e: Exception) {
-                            Log.e(TAG, "Error processing package $packageName", e)
+                            // Some apps might not allow us to check their data dir
+                            Log.w(TAG, "Could not check data dir for $packageName: ${e.message}")
+                        }
+
+                        // Determine if we should include this app
+                        val shouldInclude = if (isSystemApp) {
+                            // For system apps, be more selective
+                            hasUserData
+                        } else {
+                            // Include all non-system apps
+                            true
+                        }
+
+                        Log.d(TAG, "App: $appName, Package: $packageName, System: $isSystemApp, HasUserData: $hasUserData, Include: $shouldInclude")
+
+                        if (shouldInclude) {
+                            userApps.add(appInfo)
                         }
                     }
 
-                    Log.d(TAG, "Final filtered apps count: ${launchableApps.size}")
+                    Log.d(TAG, "Final filtered apps count: ${userApps.size}")
 
                     // Sort by app name
-                    launchableApps.sortedBy { app -> app.loadLabel(pm).toString() }
+                    userApps.sortedBy { it.loadLabel(pm).toString() }
                 }
 
                 // Check which apps are already locked
