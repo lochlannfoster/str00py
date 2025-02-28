@@ -1,15 +1,26 @@
 package com.example.strooplocker
 
 import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
-import android.os.SystemClock
 import android.util.Log
+import android.view.View
+import android.widget.Button
+import android.widget.GridLayout
+import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.ViewModelProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+/**
+ * StroopLockActivity is the main entry point of the app.
+ * It displays a cognitive challenge (Stroop test) that must be passed
+ * before the user can access a locked app.
+ */
 class StroopLockActivity : AppCompatActivity() {
 
     companion object {
@@ -20,47 +31,184 @@ class StroopLockActivity : AppCompatActivity() {
         val completedChallenges = mutableSetOf<String>()
     }
 
+    // Challenge UI elements
+    private lateinit var challengeText: TextView
+    private lateinit var answerGrid: GridLayout
+
+    // Maps color names to their RGB values
+    private val colorMap = mapOf(
+        "Red" to Color.rgb(255, 0, 0),
+        "Green" to Color.rgb(0, 255, 0),
+        "Blue" to Color.rgb(0, 0, 255),
+        "Yellow" to Color.rgb(255, 255, 0),
+        "Purple" to Color.rgb(128, 0, 128),
+        "Orange" to Color.rgb(255, 165, 0),
+        "Pink" to Color.rgb(255, 192, 203),
+        "Brown" to Color.rgb(165, 42, 42),
+        "Cyan" to Color.rgb(0, 255, 255)
+    )
+
+    // Challenge state variables
+    private var correctColor: String? = null
+    private var packageToLaunch: String? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_stroop_lock)
+
         // Initialize UI components and logic
         initUI()
         handleIntent(intent)
     }
 
     private fun initUI() {
-        // Initialize your UI elements, listeners, etc.
-        setupChallengeUI()
-        setupButtons()
+        Log.d(TAG, "Initializing UI components")
+
+        // Find views
+        challengeText = findViewById(R.id.challengeText)
+        answerGrid = findViewById(R.id.answerGrid)
+
+        // Setup buttons
+        findViewById<Button>(R.id.exitButton)?.setOnClickListener {
+            Log.d(TAG, "Exit button clicked")
+            finish()
+        }
+
+        findViewById<Button>(R.id.selectAppButton)?.setOnClickListener {
+            Log.d(TAG, "Select app button clicked")
+            val intent = Intent(this, SelectAppsActivity::class.java)
+            startActivity(intent)
+        }
+
+        findViewById<Button>(R.id.enableAccessibilityButton)?.setOnClickListener {
+            Log.d(TAG, "Enable accessibility button clicked")
+            val intent = Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS)
+            startActivity(intent)
+        }
     }
 
     private fun handleIntent(intent: Intent) {
+        Log.d(TAG, "Handling intent: $intent")
         val lockedPackage = intent.getStringExtra(EXTRA_LOCKED_PACKAGE)
         if (lockedPackage != null) {
+            packageToLaunch = lockedPackage
             handleLockedApp(lockedPackage)
         } else {
-            Log.e(TAG, "No locked package provided in the intent.")
+            Log.d(TAG, "No locked package provided in the intent.")
+            generateChallenge() // Generate a sample challenge for testing
         }
     }
 
     private fun handleLockedApp(packageName: String) {
         Log.d(TAG, "Handling locked app for package: $packageName")
 
-        // Example use of simpleCyclicDerangement on a list of colors
-        val colors = listOf("Red", "Green", "Blue", "Yellow")
-        val derangedColors = simpleCyclicDerangement(colors)
-        Log.d(TAG, "Deranged colors: $derangedColors")
-
-        // Example use of calculateFontSizeForWord
-        val sampleWord = "Example"
-        val fontSize = calculateFontSizeForWord(sampleWord)
-        Log.d(TAG, "Calculated font size for '$sampleWord': $fontSize")
-
         // Launch locked app if challenge already completed, otherwise start challenge
         if (checkChallengeCompletion(packageName)) {
+            Log.d(TAG, "Challenge already completed for $packageName, launching app")
             launchLockedApp(packageName)
         } else {
-            startChallenge(packageName)
+            Log.d(TAG, "Starting challenge for $packageName")
+            ChallengeManager.startChallenge(packageName)
+            generateChallenge()
+        }
+    }
+
+    /**
+     * Generates a new Stroop challenge with random colors.
+     * The word and ink color will always be different to create the Stroop effect.
+     */
+    private fun generateChallenge() {
+        Log.d(TAG, "Generating new challenge")
+
+        // Clear existing buttons
+        answerGrid.removeAllViews()
+
+        // Get available colors
+        val colorNames = colorMap.keys.toList()
+
+        // Choose a random word (color name)
+        val wordColorName = colorNames.random()
+
+        // Choose a different color for the ink
+        var inkColorName: String
+        do {
+            inkColorName = colorNames.random()
+        } while (inkColorName == wordColorName)
+
+        // Set the correct answer to the ink color
+        correctColor = inkColorName
+
+        // Set the challenge text with proper colors
+        challengeText.text = wordColorName
+        challengeText.setTextColor(colorMap[inkColorName] ?: Color.BLACK)
+
+        // Log the challenge details for debugging
+        Log.d(TAG, "Challenge - Word: $wordColorName, Ink: $inkColorName (correct answer)")
+
+        // Create the buttons for color selection
+        createColorButtons(colorNames)
+    }
+
+    /**
+     * Creates the grid of color buttons for the user to select from.
+     * Each button shows a color name in a different color to maintain the Stroop effect.
+     */
+    private fun createColorButtons(colorNames: List<String>) {
+        // Create a shuffled list of colors for buttons
+        val shuffledColors = colorNames.shuffled()
+
+        // Make sure we don't use more colors than we have available
+        val numButtons = Math.min(9, shuffledColors.size)
+
+        // For each color, create a button
+        for (i in 0 until numButtons) {
+            val colorName = shuffledColors[i]
+            val button = Button(this)
+            button.text = colorName
+
+            // Set a different text color than the button text (maintaining Stroop effect)
+            val textColorIndex = (i + 1) % numButtons
+            val textColorName = shuffledColors[textColorIndex]
+            button.setTextColor(colorMap[textColorName] ?: Color.BLACK)
+
+            // Make buttons evenly distributed
+            val params = GridLayout.LayoutParams()
+            params.width = 0
+            params.height = GridLayout.LayoutParams.WRAP_CONTENT
+            params.columnSpec = GridLayout.spec(i % 3, 1f)
+            params.rowSpec = GridLayout.spec(i / 3, 1f)
+            button.layoutParams = params
+
+            // Set click listener
+            button.setOnClickListener { onColorSelected(colorName) }
+
+            // Add to grid
+            answerGrid.addView(button)
+        }
+    }
+
+    /**
+     * Handles user selection of a color.
+     * If correct, launches the locked app.
+     * If incorrect, generates a new challenge.
+     */
+    private fun onColorSelected(selectedColor: String) {
+        if (selectedColor == correctColor) {
+            Log.d(TAG, "Correct answer selected: $selectedColor")
+            Toast.makeText(this, getString(R.string.correct_answer), Toast.LENGTH_SHORT).show()
+
+            // Mark challenge as completed and launch the app
+            packageToLaunch?.let { pkg ->
+                completedChallenges.add(pkg)
+                ChallengeManager.completeChallenge(true)
+                launchLockedApp(pkg)
+            }
+        } else {
+            Log.d(TAG, "Incorrect answer: $selectedColor, expected: $correctColor")
+            Toast.makeText(this, getString(R.string.incorrect_answer), Toast.LENGTH_SHORT).show()
+
+            // Generate a new challenge
+            generateChallenge()
         }
     }
 
@@ -69,21 +217,29 @@ class StroopLockActivity : AppCompatActivity() {
         return completedChallenges.contains(packageName)
     }
 
-    private fun startChallenge(packageName: String) {
-        Log.d(TAG, "Starting challenge for package: $packageName")
-
-        // Track the challenge in ChallengeManager
-        ChallengeManager.startChallenge(packageName)
-
-        // Start the challenge activity
-        val intent = Intent(this, StroopChallengeActivity::class.java).apply {
-            putExtra(EXTRA_LOCKED_PACKAGE, packageName)
+    /**
+     * Launches the locked app by retrieving its launch intent.
+     */
+    private fun launchLockedApp(packageName: String) {
+        Log.d(TAG, "Launching locked app: $packageName")
+        try {
+            val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
+            if (launchIntent != null) {
+                startActivity(launchIntent)
+                finish() // Close StroopLockActivity after launching the app
+            } else {
+                Log.e(TAG, "No launch intent found for package: $packageName")
+                Toast.makeText(
+                    this,
+                    getString(R.string.unable_to_launch, packageName),
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error launching app: $packageName", e)
+            Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_LONG).show()
         }
-        startActivity(intent)
     }
-
-
-
 
     /**
      * Shifts the first element of the list to the end, simulating a cyclic derangement.
@@ -106,300 +262,4 @@ class StroopLockActivity : AppCompatActivity() {
             else             -> 30f
         }
     }
-
-    /**
-     * Launches the locked app by retrieving its launch intent.
-     */
-    private fun launchLockedApp(packageName: String) {
-        val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
-        if (launchIntent != null) {
-            startActivity(launchIntent)
-        } else {
-            Log.e(TAG, "No launch intent found for package: $packageName")
-        }
-    }
-
-    override fun onStart() {
-        super.onStart()
-        Log.d(TAG, "StroopLockActivity onStart")
-        // Example of a member function instead of a local function
-        runLocalHelper()
-    }
-
-    override fun onResume() {
-        super.onResume()
-        Log.d(TAG, "StroopLockActivity onResume")
-    }
-
-    override fun onPause() {
-        super.onPause()
-        Log.d(TAG, "StroopLockActivity onPause")
-    }
-
-    override fun onStop() {
-        super.onStop()
-        Log.d(TAG, "StroopLockActivity onStop")
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        Log.d(TAG, "StroopLockActivity onDestroy")
-    }
-
-    // Setup UI for the Stroop challenge
-    private fun setupChallengeUI() {
-        // Initialize text views, buttons, and other UI elements for the challenge.
-        Log.d(TAG, "Setting up challenge UI")
-    }
-
-    // Setup additional button listeners
-    private fun setupButtons() {
-        // For example, setting up the button to pick an app from the launcher
-        // findViewById<Button>(R.id.pickAppButton)?.setOnClickListener { pickAppFromLauncher() }
-    }
-
-    /**
-     * Picks an app from the launcher using an intent.
-     * Uncomment and modify as needed.
-     */
-    private fun pickAppFromLauncher() {
-        val intent = Intent(Intent.ACTION_MAIN).apply {
-            addCategory(Intent.CATEGORY_LAUNCHER)
-        }
-        startActivityForResult(intent, REQUEST_CODE_PICK_APP)
-    }
-
-    // Handle results from the app picker
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == REQUEST_CODE_PICK_APP) {
-            if (resultCode == RESULT_OK && data != null) {
-                val selectedAppPackage: String? = data.getStringExtra("selectedAppPackage")
-                if (selectedAppPackage != null) {
-                    Log.d(TAG, "Selected app: $selectedAppPackage")
-                    launchLockedApp(selectedAppPackage)
-                } else {
-                    Log.e(TAG, "No app package returned from picker")
-                }
-            }
-        }
-    }
-
-    /**
-     * Processes the user's response to the challenge.
-     */
-    private fun processChallengeResponse(userResponse: String, correctResponse: String) {
-        if (userResponse.equals(correctResponse, ignoreCase = true)) {
-            Log.d(TAG, "Challenge passed")
-            val lockedPackage = intent.getStringExtra(EXTRA_LOCKED_PACKAGE)
-            if (lockedPackage != null) {
-                completedChallenges.add(lockedPackage)
-                launchLockedApp(lockedPackage)
-            }
-        } else {
-            Log.d(TAG, "Challenge failed, restarting challenge")
-            val lockedPackage = intent.getStringExtra(EXTRA_LOCKED_PACKAGE) ?: ""
-            startChallenge(lockedPackage)
-        }
-    }
-
-    /**
-     * Simulates a delay for the challenge using coroutines.
-     */
-    private fun simulateChallengeDelay(delayMillis: Long, onComplete: () -> Unit) {
-        CoroutineScope(Dispatchers.IO).launch {
-            Thread.sleep(delayMillis)
-            withContext(Dispatchers.Main) {
-                onComplete()
-            }
-        }
-    }
-
-    // Example of a member helper function (replacing a problematic local function)
-    private fun runLocalHelper() {
-        Log.d(TAG, "Local helper function executed.")
-    }
-
-    // ---------------------------------------------------
-    // Below are dummy functions and extra content to simulate a 500+ line file.
-    // You can remove or modify these as needed.
-    // ---------------------------------------------------
-
-    private fun dummyFunction1() {
-        Log.d(TAG, "dummyFunction1 called")
-    }
-
-    private fun dummyFunction2() {
-        Log.d(TAG, "dummyFunction2 called")
-    }
-
-    private fun dummyFunction3() {
-        Log.d(TAG, "dummyFunction3 called")
-    }
-
-    private fun dummyFunction4() {
-        Log.d(TAG, "dummyFunction4 called")
-    }
-
-    private fun dummyFunction5() {
-        Log.d(TAG, "dummyFunction5 called")
-    }
-
-    private fun dummyFunction6() {
-        Log.d(TAG, "dummyFunction6 called")
-    }
-
-    private fun dummyFunction7() {
-        Log.d(TAG, "dummyFunction7 called")
-    }
-
-    private fun dummyFunction8() {
-        Log.d(TAG, "dummyFunction8 called")
-    }
-
-    private fun dummyFunction9() {
-        Log.d(TAG, "dummyFunction9 called")
-    }
-
-    private fun dummyFunction10() {
-        Log.d(TAG, "dummyFunction10 called")
-    }
-
-    private fun extraSection1() {
-        for (i in 1..50) {
-            Log.d(TAG, "Extra section 1, iteration: $i")
-        }
-    }
-
-    private fun extraSection2() {
-        for (i in 1..50) {
-            Log.d(TAG, "Extra section 2, iteration: $i")
-        }
-    }
-
-    private fun extraSection3() {
-        for (i in 1..50) {
-            Log.d(TAG, "Extra section 3, iteration: $i")
-        }
-    }
-
-    private fun extraSection4() {
-        for (i in 1..50) {
-            Log.d(TAG, "Extra section 4, iteration: $i")
-        }
-    }
-
-    private fun extraSection5() {
-        for (i in 1..50) {
-            Log.d(TAG, "Extra section 5, iteration: $i")
-        }
-    }
-
-    private fun initExtraSections() {
-        extraSection1()
-        extraSection2()
-        extraSection3()
-        extraSection4()
-        extraSection5()
-    }
-
-    override fun onPostResume() {
-        super.onPostResume()
-        initExtraSections()
-    }
-
-    private fun dummyFunction11() {
-        Log.d(TAG, "dummyFunction11 called")
-    }
-
-    private fun dummyFunction12() {
-        Log.d(TAG, "dummyFunction12 called")
-    }
-
-    private fun dummyFunction13() {
-        Log.d(TAG, "dummyFunction13 called")
-    }
-
-    private fun dummyFunction14() {
-        Log.d(TAG, "dummyFunction14 called")
-    }
-
-    private fun dummyFunction15() {
-        Log.d(TAG, "dummyFunction15 called")
-    }
-
-    // Adding extra blank lines and comments to simulate a very long file.
-
-    // ------------------------------------------------------------------
-    // More dummy content below (lines 400+)
-    // ------------------------------------------------------------------
-
-    // Dummy Content Block A
-    private fun dummyContentBlockA() {
-        for (i in 1..20) {
-            Log.d(TAG, "Dummy Content Block A, line: $i")
-        }
-    }
-
-    // Dummy Content Block B
-    private fun dummyContentBlockB() {
-        for (i in 1..20) {
-            Log.d(TAG, "Dummy Content Block B, line: $i")
-        }
-    }
-
-    // Dummy Content Block C
-    private fun dummyContentBlockC() {
-        for (i in 1..20) {
-            Log.d(TAG, "Dummy Content Block C, line: $i")
-        }
-    }
-
-    // Dummy Content Block D
-    private fun dummyContentBlockD() {
-        for (i in 1..20) {
-            Log.d(TAG, "Dummy Content Block D, line: $i")
-        }
-    }
-
-    // Dummy Content Block E
-    private fun dummyContentBlockE() {
-        for (i in 1..20) {
-            Log.d(TAG, "Dummy Content Block E, line: $i")
-        }
-    }
-
-    private fun runAllDummyContent() {
-        dummyFunction1()
-        dummyFunction2()
-        dummyFunction3()
-        dummyFunction4()
-        dummyFunction5()
-        dummyFunction6()
-        dummyFunction7()
-        dummyFunction8()
-        dummyFunction9()
-        dummyFunction10()
-        dummyFunction11()
-        dummyFunction12()
-        dummyFunction13()
-        dummyFunction14()
-        dummyFunction15()
-        dummyContentBlockA()
-        dummyContentBlockB()
-        dummyContentBlockC()
-        dummyContentBlockD()
-        dummyContentBlockE()
-    }
-
-    // Call runAllDummyContent somewhere appropriate, e.g., during onResume
-    override fun onRestart() {
-        super.onRestart()
-        runAllDummyContent()
-    }
-
-    // ------------------------------------------------------------------
-    // End of dummy content block.
-    // ------------------------------------------------------------------
-
 }

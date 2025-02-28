@@ -19,11 +19,6 @@
         android:theme="@style/Theme.Strooplocker">
 
         <activity
-            android:name=".StroopChallengeActivity"
-            android:exported="false" />
-
-        <!-- Main activities -->
-        <activity
             android:name=".StroopLockActivity"
             android:exported="true">
             <intent-filter>
@@ -65,5 +60,4 @@
         </receiver>
 
     </application>
-
 </manifest>
