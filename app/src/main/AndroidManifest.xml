@@ -2,6 +2,10 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.example.strooplocker">
 
+    <!-- Required permissions -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.BIND_ACCESSIBILITY_SERVICE" />
+
     <!-- For querying installed apps -->
     <queries>
         <intent>

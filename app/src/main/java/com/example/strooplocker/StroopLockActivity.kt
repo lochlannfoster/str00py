@@ -25,7 +25,7 @@ class StroopLockActivity : AppCompatActivity() {
         const val REQUEST_CODE_ACCESSIBILITY = 1002
         const val REQUEST_CODE_OVERLAY = 1003
 
-        // Exposed so other classes can read the set if needed
+        // Exposed so other classes can read the set
         val completedChallenges = mutableSetOf<String>()
     }
 
@@ -78,9 +78,17 @@ class StroopLockActivity : AppCompatActivity() {
         challengeText = findViewById(R.id.challengeText)
         answerGrid = findViewById(R.id.answerGrid)
 
-        // Setup buttons
+        // Setup exit button - just close the activity without unlocking
         findViewById<Button>(R.id.exitButton)?.setOnClickListener {
-            Log.d(TAG, "Exit button clicked")
+            Log.d(TAG, "Exit button clicked - returning to home")
+
+            // Launch home screen instead of the locked app
+            val homeIntent = Intent(Intent.ACTION_MAIN)
+            homeIntent.addCategory(Intent.CATEGORY_HOME)
+            homeIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            startActivity(homeIntent)
+
+            // Close this activity
             finish()
         }
 
@@ -375,7 +383,8 @@ class StroopLockActivity : AppCompatActivity() {
             packageToLaunch?.let { pkg ->
                 completedChallenges.add(pkg)
                 ChallengeManager.completeChallenge(true)
-                launchLockedApp(pkg)
+                Log.d(TAG, "Challenge completed for $pkg, launching app and exiting")
+                launchLockedApp(pkg) // This will also finish() our activity
             }
         } else {
             Log.d(TAG, "Incorrect answer: $selectedColor, expected: $correctColor")
@@ -393,12 +402,18 @@ class StroopLockActivity : AppCompatActivity() {
 
     /**
      * Launches the locked app by retrieving its launch intent.
+     * This also closes the current activity.
      */
     private fun launchLockedApp(packageName: String) {
         Log.d(TAG, "Launching locked app: $packageName")
         try {
             val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
             if (launchIntent != null) {
+                // Add flags to make sure it starts cleanly
+                launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                launchIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+
+                // Start the app and close this activity
                 startActivity(launchIntent)
                 finish() // Close StroopLockActivity after launching the app
             } else {
