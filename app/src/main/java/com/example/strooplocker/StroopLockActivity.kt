@@ -35,19 +35,6 @@ class StroopLockActivity : AppCompatActivity() {
     private lateinit var enableAccessibilityButton: Button
     private lateinit var colorMap: Map<String, Int>
 
-    // Maps color names to their RGB values
-    private val colorMap = mapOf(
-        "Red" to Color.rgb(255, 0, 0),
-        "Green" to Color.rgb(0, 255, 0),
-        "Blue" to Color.rgb(0, 0, 255),
-        "Yellow" to Color.rgb(255, 255, 0),
-        "Purple" to Color.rgb(128, 0, 128),
-        "Orange" to Color.rgb(255, 165, 0),
-        "Pink" to Color.rgb(255, 192, 203),
-        "Brown" to Color.rgb(165, 42, 42),
-        "Cyan" to Color.rgb(0, 255, 255)
-    )
-
     // Challenge state variables
     private var correctColor: String? = null
     private var packageToLaunch: String? = null
