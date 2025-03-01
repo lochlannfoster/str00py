@@ -1,3 +1,5 @@
+// app/src/main/java/com/example/strooplocker/StroopLockActivity.kt
+
 package com.example.strooplocker
 
 import android.accessibilityservice.AccessibilityServiceInfo
@@ -14,6 +16,8 @@ import android.widget.Button
 import android.widget.GridLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 
 class StroopLockActivity : AppCompatActivity() {
@@ -21,9 +25,6 @@ class StroopLockActivity : AppCompatActivity() {
     companion object {
         const val TAG = "StroopLockActivity"
         const val EXTRA_LOCKED_PACKAGE = "extra_locked_package"
-        const val REQUEST_CODE_PICK_APP = 1001
-        const val REQUEST_CODE_ACCESSIBILITY = 1002
-        const val REQUEST_CODE_OVERLAY = 1003
 
         // Exposed so other classes can read the set
         val completedChallenges = mutableSetOf<String>()
@@ -35,6 +36,11 @@ class StroopLockActivity : AppCompatActivity() {
     private lateinit var enableAccessibilityButton: Button
     private lateinit var colorMap: Map<String, Int>
 
+    // Activity Result launchers
+    private lateinit var accessibilitySettingsLauncher: ActivityResultLauncher<Intent>
+    private lateinit var overlayPermissionLauncher: ActivityResultLauncher<Intent>
+    private lateinit var selectAppLauncher: ActivityResultLauncher<Intent>
+
     // Challenge state variables
     private var correctColor: String? = null
     private var packageToLaunch: String? = null
@@ -42,6 +48,44 @@ class StroopLockActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_stroop_lock)
+
+        // Register for Activity Results
+        accessibilitySettingsLauncher = registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult()
+        ) {
+            // Check if accessibility service is now enabled
+            if (isAccessibilityServiceEnabled()) {
+                Toast.makeText(this, "Accessibility service enabled!", Toast.LENGTH_SHORT).show()
+                // Check if we need overlay permission next
+                if (!Settings.canDrawOverlays(this)) {
+                    requestOverlayPermission()
+                }
+            } else {
+                Toast.makeText(this, "Accessibility service not enabled", Toast.LENGTH_LONG).show()
+            }
+            // Update permission status UI
+            updatePermissionStatus()
+        }
+
+        overlayPermissionLauncher = registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult()
+        ) {
+            // Check if overlay permission is now granted
+            if (Settings.canDrawOverlays(this)) {
+                Toast.makeText(this, "Overlay permission granted!", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this, "Overlay permission needed for full functionality", Toast.LENGTH_LONG).show()
+            }
+            // Update permission status UI
+            updatePermissionStatus()
+        }
+
+        selectAppLauncher = registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult()
+        ) {
+            // Refresh after returning from app selection
+            updatePermissionStatus()
+        }
 
         // Initialize UI components and logic
         initUI()
@@ -63,7 +107,7 @@ class StroopLockActivity : AppCompatActivity() {
             "Brown" to Color.rgb(165, 42, 42),
             "Cyan" to Color.rgb(0, 255, 255)
         )
-       Log.d(TAG, "Color map initialized with ${colorMap.size} colors")
+        Log.d(TAG, "Color map initialized with ${colorMap.size} colors")
     }
 
     override fun onResume() {
@@ -96,7 +140,7 @@ class StroopLockActivity : AppCompatActivity() {
         findViewById<Button>(R.id.selectAppButton)?.setOnClickListener {
             Log.d(TAG, "Select app button clicked")
             val intent = Intent(this, SelectAppsActivity::class.java)
-            startActivity(intent)
+            selectAppLauncher.launch(intent)
         }
 
         enableAccessibilityButton = findViewById(R.id.enableAccessibilityButton)
@@ -191,7 +235,7 @@ class StroopLockActivity : AppCompatActivity() {
             .setMessage("1. Find \"Stroop Lock Service\" in the list\n2. Toggle it ON\n3. Confirm in the dialog\n4. Return to this app")
             .setPositiveButton("Open Settings") { _, _ ->
                 val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-                startActivityForResult(intent, REQUEST_CODE_ACCESSIBILITY)
+                accessibilitySettingsLauncher.launch(intent)
             }
             .setCancelable(false)
             .show()
@@ -207,7 +251,7 @@ class StroopLockActivity : AppCompatActivity() {
                     Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                     Uri.parse("package:$packageName")
                 )
-                startActivityForResult(intent, REQUEST_CODE_OVERLAY)
+                overlayPermissionLauncher.launch(intent)
             }
             .setCancelable(false)
             .show()
@@ -238,35 +282,6 @@ class StroopLockActivity : AppCompatActivity() {
         }
     }
 
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-
-        // Check permission status after returning from system settings
-        when (requestCode) {
-            REQUEST_CODE_ACCESSIBILITY -> {
-                if (isAccessibilityServiceEnabled()) {
-                    Toast.makeText(this, "Accessibility service enabled!", Toast.LENGTH_SHORT).show()
-                    // Check if we need overlay permission next
-                    if (!Settings.canDrawOverlays(this)) {
-                        requestOverlayPermission()
-                    }
-                } else {
-                    Toast.makeText(this, "Accessibility service not enabled", Toast.LENGTH_LONG).show()
-                }
-            }
-            REQUEST_CODE_OVERLAY -> {
-                if (Settings.canDrawOverlays(this)) {
-                    Toast.makeText(this, "Overlay permission granted!", Toast.LENGTH_SHORT).show()
-                } else {
-                    Toast.makeText(this, "Overlay permission needed for full functionality", Toast.LENGTH_LONG).show()
-                }
-            }
-        }
-
-        // Update permission status UI
-        updatePermissionStatus()
-    }
-
     private fun handleIntent(intent: Intent) {
         Log.d(TAG, "Handling intent: $intent")
         val lockedPackage = intent.getStringExtra(EXTRA_LOCKED_PACKAGE)
@@ -292,16 +307,6 @@ class StroopLockActivity : AppCompatActivity() {
             generateChallenge()
         }
     }
-
-    /**
-     * Generates a new Stroop challenge with random colors.
-     * The word and ink color will always be different to create the Stroop effect.
-     */
-    /**
-     * Generates a new Stroop challenge with random colors.
-     * The word and ink color will always be different to create the Stroop effect.
-     */
-// app/src/main/java/com/example/strooplocker/StroopLockActivity.kt
 
     private fun generateChallenge() {
         Log.d(TAG, "Generating new challenge - BEGIN")
@@ -377,10 +382,6 @@ class StroopLockActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * Creates the grid of color buttons for the user to select from.
-     * Each button shows a color name in a different color to maintain the Stroop effect.
-     */
     private fun createColorButtons(colorNames: List<String>) {
         try {
             Log.d(TAG, "Creating color buttons with ${colorNames.size} available colors")
@@ -457,6 +458,10 @@ class StroopLockActivity : AppCompatActivity() {
 
                 // Use SessionManager to track completion
                 SessionManager.completeChallenge(pkg)
+                completedChallenges.add(pkg)
+
+                // We cannot directly access StroopAccessibilityService's completedChallenges
+                // So we use the SessionManager which should be the source of truth
 
                 // Add a short delay before launching app to allow UI feedback
                 challengeText.postDelayed({
@@ -479,13 +484,9 @@ class StroopLockActivity : AppCompatActivity() {
 
     private fun checkChallengeCompletion(packageName: String): Boolean {
         // Check if the challenge for this package has been completed recently
-        return completedChallenges.contains(packageName)
+        return completedChallenges.contains(packageName) || SessionManager.isChallengeCompleted(packageName)
     }
 
-    /**
-     * Launches the locked app by retrieving its launch intent.
-     * This also closes the current activity.
-     */
     private fun launchLockedApp(packageName: String) {
         Log.d(TAG, "Launching locked app: $packageName")
         try {
@@ -516,4 +517,5 @@ class StroopLockActivity : AppCompatActivity() {
             Log.e(TAG, "Error launching app: $packageName", e)
             Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_LONG).show()
         }
-    }}
+    }
+}

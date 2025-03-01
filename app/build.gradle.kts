@@ -15,6 +15,9 @@ android {
         versionCode = 1
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        testOptions {
+            unitTests.isReturnDefaultValues = true
+        }
     }
 
     buildTypes {
@@ -28,20 +31,35 @@ android {
     }
 
     buildFeatures {
-        buildConfig = true
-        viewBinding = true
+        buildConfig = true  // Explicitly enable buildConfig
+        viewBinding = true  // Keep this if you're using view binding
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
     }
 
     kotlinOptions {
-        jvmTarget = "1.8"
+        jvmTarget = "11"
     }
     buildToolsVersion = "35.0.0"
+
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+    }
+
+    tasks.withType<org.jetbrains.kotlin.gradle.internal.KaptTask> {
+        kotlinOptions.jvmTarget = "1.8"
+    }
+
+    android.lint {
+        warning += "InvalidPackage"
+        disable += "OldTargetApi"
+        disable += "Deprecation"
+    }
 }
+
 
 dependencies {
     // Core Android dependencies
@@ -65,6 +83,20 @@ dependencies {
 
     // Testing
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.mockito:mockito-core:5.0.0")
+    testImplementation("org.mockito:mockito-inline:5.0.0")
+    testImplementation("org.mockito.kotlin:mockito-kotlin:5.0.0")
+    testImplementation("androidx.arch.core:core-testing:2.2.0")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
+
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
+    androidTestImplementation("androidx.test:runner:1.5.2")
+    androidTestImplementation("androidx.test:rules:1.5.0")
+}
+
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
+    kotlinOptions {
+        jvmTarget = "11"
+    }
 }

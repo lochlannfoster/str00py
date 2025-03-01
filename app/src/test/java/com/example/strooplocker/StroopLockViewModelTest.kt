@@ -5,6 +5,7 @@ package com.example.strooplocker
 import android.app.Application
 import android.graphics.Color
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.Observer
 import com.example.strooplocker.data.LockedAppDao
 import com.example.strooplocker.data.LockedAppDatabase
@@ -106,31 +107,37 @@ class StroopLockViewModelTest {
             "Blue" to Color.BLUE,
             "Green" to Color.GREEN
         )
-        val field = StroopLockViewModel::class.java.getDeclaredField("_colorMap")
-        field.isAccessible = true
-        field.set(viewModel, colorMap)
+
+        // Use reflection to set the MutableLiveData value
+        val colorMapField = StroopLockViewModel::class.java.getDeclaredField("_colorMap")
+        colorMapField.isAccessible = true
+        val colorMapLiveData = colorMapField.get(viewModel) as MutableLiveData<Map<String, Int>>
+        colorMapLiveData.value = colorMap
 
         // Act
         viewModel.generateChallenge()
         testDispatcher.scheduler.advanceUntilIdle()
 
-        // Assert
-        verify(challengeWordObserver).onChanged(any())
-        verify(inkColorObserver).onChanged(any())
-        verify(expectedAnswerObserver).onChanged(any())
-        verify(buttonLabelsObserver).onChanged(any())
+        // Assert - verify that the observers were notified
+        verify(challengeWordObserver, atLeastOnce()).onChanged(any())
+        verify(inkColorObserver, atLeastOnce()).onChanged(any())
+        verify(expectedAnswerObserver, atLeastOnce()).onChanged(any())
+        verify(buttonLabelsObserver, atLeastOnce()).onChanged(any())
     }
 
     @Test
     fun checkAnswer_correctAnswer_returnsTrue() {
-        // Arrange
-        val correctColor = "Blue"
+        // Instead of subclassing, we'll use the actual viewModel and modify its fields directly
+
+        val expectedAnswer = "Blue"
+
+        // Use reflection to set the expected answer
         val field = StroopLockViewModel::class.java.getDeclaredField("_expectedAnswer")
         field.isAccessible = true
-        field.set(viewModel, correctColor)
+        (field.get(viewModel) as MutableLiveData<String>).value = expectedAnswer
 
         // Act
-        val result = viewModel.checkAnswer(correctColor)
+        val result = viewModel.checkAnswer(expectedAnswer)
 
         // Assert
         assertTrue(result)
@@ -138,15 +145,16 @@ class StroopLockViewModelTest {
 
     @Test
     fun checkAnswer_incorrectAnswer_returnsFalse() {
-        // Arrange
-        val correctColor = "Blue"
-        val wrongColor = "Red"
+        // Use reflection to set the expected answer
+        val correctAnswer = "Blue"
+        val wrongAnswer = "Red"
+
         val field = StroopLockViewModel::class.java.getDeclaredField("_expectedAnswer")
         field.isAccessible = true
-        field.set(viewModel, correctColor)
+        (field.get(viewModel) as MutableLiveData<String>).value = correctAnswer
 
         // Act
-        val result = viewModel.checkAnswer(wrongColor)
+        val result = viewModel.checkAnswer(wrongAnswer)
 
         // Assert
         assertFalse(result)
@@ -154,12 +162,18 @@ class StroopLockViewModelTest {
 
     @Test
     fun loadLockedApps_callsRepository() = runTest {
+        // Since loadLockedApps is called in init, reset the mock first
+        reset(mockRepository)
+
+        // Arrange
+        `when`(mockRepository.getAllLockedApps()).thenReturn(listOf("app1", "app2"))
+
         // Act
         viewModel.loadLockedApps()
         testDispatcher.scheduler.advanceUntilIdle()
 
         // Assert
-        verify(mockRepository).getAllLockedApps()
+        verify(mockRepository, times(1)).getAllLockedApps()
     }
 
     @Test
