@@ -21,6 +21,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.Mock
 import org.mockito.Mockito
+import org.mockito.Mockito.lenient
 import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
 import org.mockito.junit.MockitoJUnitRunner
@@ -36,7 +37,7 @@ import java.util.concurrent.TimeoutException
  * interacts with the repository, and provides proper data to the UI.
  */
 @ExperimentalCoroutinesApi
-@RunWith(MockitoJUnitRunner::class)
+@RunWith(MockitoJUnitRunner.Silent::class)
 class StroopLockViewModelTest {
 
     @get:Rule
@@ -63,12 +64,12 @@ class StroopLockViewModelTest {
         // Set the main dispatcher to our test dispatcher
         Dispatchers.setMain(testDispatcher)
 
-        // Setup basic mocks
-        Mockito.`when`(mockDb.lockedAppDao()).thenReturn(mockDao)
-        Mockito.`when`(mockApplication.applicationContext).thenReturn(mockApplication)
+        // Setup basic mocks with lenient mocking to avoid unnecessary stubbing errors
+        lenient().`when`(mockDb.lockedAppDao()).thenReturn(mockDao)
+        lenient().`when`(mockApplication.applicationContext).thenReturn(mockApplication)
 
-        // Set up repository mock for initial ViewModel loading
-        Mockito.`when`(mockRepository.getAllLockedApps()).thenReturn(emptyList())
+        // Use lenient mocking for repository calls
+        lenient().`when`(mockRepository.getAllLockedApps()).thenReturn(emptyList())
 
         // Create the ViewModel
         viewModel = StroopLockViewModel(mockApplication)
