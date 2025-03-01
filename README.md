@@ -32,6 +32,13 @@ Licensed under GPL 2.0, for your freedoms.
 
 ---
 
+**DISCLAIMER**
+
+I am a very inexperienced programmer and the source code for this app is likely not very efficient. I've done my best, but sometimes your best isn't good enough!
+
+---
+
+
 ❤️ Thanks for checking out the repo! ❤️
 
 ---
