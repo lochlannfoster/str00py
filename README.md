@@ -1,46 +1,32 @@
+![github-header-image](https://github.com/user-attachments/assets/8ca57ee7-ef45-40fe-9781-7e387d56a016)
 
-# StroopLocker aka str00py
-
-**StroopLocker** aims to be a productivity tool to specifically counter your urges for doomscrolling your phone. The idea is to encourage you to challenge your consciousness before being granted to apps. 
-It's Android app that briefly displays a double Stroop-style color challenge before allowing the user to access a chosen locked app. It presents a word in one color and requires the user to identify the ink color (not the text label). The user must correctly tap the matching color label from a grid of mismatched label-text pairs to pass.
+**str00py** is a productivity app that aids in mindful scrolling. It allows the user to select applications to lock behind a two-faceted stroop challenge, ensuring you engage your brain for at least one second before you can access the app.
 
 ---
 
+![github-header-image(1)](https://github.com/user-attachments/assets/0bab1a11-382c-4b8c-9dea-e5956b64e4e0)
 
-1. **Double Stroop Challenge**  
-   - The displayed word is a “decoy” (e.g., "Red"), but its *ink color* is the correct answer (e.g., "Cyan").  
-   - The user must spot the correct color label among nine randomized buttons.
-
-2. **App Locking**  
-   - Select any installed app.  
-   - The chosen app is locked behind this Stroop puzzle, requiring successful challenge completion.
-
-### 🚀 How it Works
-
-1. **Launch StroopLocker**  
-2. **Choose an app** to lock through the “Select App” button.  
-3. **See a word (a label)** in an ink color that is different from the label meaning.  
-4. **Tap** the correct label in the 3×3 grid that matches the ink color.  
-5. If correct, the locked app launches; if not, you get a new puzzle!
-
-
-### Regrets, for now
-It's improving with most commits, but I'm still struggling to get this relatively stable and functional. It probably will never work!
+The app presents the user with a color word, like "Blue", but displays it in a different color, such as red. Below this are several buttons, each showing a color word in a mismatched color (e.g. "Red" in yellow). To pass the challenge, the user must select the button that matches the display color of the original word, fighting the urge to pick the one that matches the word itself.
 
 ---
 
-### 🐛 Known issues 
+![github-header-image(4)](https://github.com/user-attachments/assets/8538964d-9252-46f1-9551-b4a6dd7934e8)
 
-- Currently, it barely works, lol. 
-
----
-
-### 🙏 To do 
-this list, lol
+**TO BE UPDATED**
 
 ---
 
-### 🇺🇸 🦅 License
+![github-header-image(2)](https://github.com/user-attachments/assets/f5039233-deea-41e7-ac6e-15d3605ba8c6)
+
+- Prettier and more dynamic UI.
+- Accessibility features (colourblindness themes, alternate stroop tests such as shape and word matching)
+- Non-English localization
+- Thorough testing on an array of Android models and builds.
+
+---
+
+![github-header-image(3)](https://github.com/user-attachments/assets/21bb46c9-1e8c-479d-9ce0-3ca6c53e3bcc)
+
 Licensed under GPL 2.0, for your freedoms.
 [This project is provided as-is, without warranty. Modify and distribute at your discretion.](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html)
 
