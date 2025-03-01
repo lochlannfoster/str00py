@@ -33,7 +33,6 @@ class SessionManagerTest {
     private lateinit var mockHandler: Handler
 
     private lateinit var looperMock: MockedStatic<Looper>
-    private lateinit var handlerMock: MockedStatic<Handler>
 
     @Before
     fun setup() {
@@ -44,14 +43,10 @@ class SessionManagerTest {
         looperMock = Mockito.mockStatic(Looper::class.java)
         looperMock.`when`<Looper> { Looper.getMainLooper() }.thenReturn(null)
 
-        // Mock Handler to prevent removeCallbacksAndMessages errors
-        handlerMock = Mockito.mockStatic(Handler::class.java)
+        // Mock the removeCallbacksAndMessages method to do nothing
+        doNothing().`when`(mockHandler).removeCallbacksAndMessages(null)
 
-        // Create a mock handler that allows method calls without throwing exceptions
-        Mockito.`when`(mockHandler.removeCallbacksAndMessages(null)).thenReturn(null)
-
-        // Replace the lazy-initialized handler in SessionManager
-        // Note: This requires modifying SessionManager to allow handler replacement for testing
+        // Replace the handler in SessionManager with our mock
         SessionManager.replaceHandlerForTesting(mockHandler)
 
         // Reset SessionManager to a clean state before each test
@@ -60,9 +55,8 @@ class SessionManagerTest {
 
     @After
     fun tearDown() {
-        // Close the static mocks
+        // Close the static mock
         looperMock.close()
-        handlerMock.close()
     }
 
     @Test
