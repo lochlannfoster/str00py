@@ -11,22 +11,30 @@ import com.example.strooplocker.data.LockedAppDatabase
 import com.example.strooplocker.data.LockedAppsRepository
 import kotlinx.coroutines.launch
 import com.example.strooplocker.utils.LoggingUtil
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.asStateFlow
+@Suppress("UNCHECKED_CAST")
 
-
+/**
+ * ViewModel for the StroopLock functionality.
+ * Manages and preserves UI-related data across configuration changes.
+ * Handles the challenge generation, validation, and locked apps management.
+ */
 class StroopLockViewModel(application: Application) : AndroidViewModel(application) {
 
     companion object {
         private const val TAG = "StroopLockViewModel_DEBUG"
     }
 
+    // Repository for database operations
     private val repository = LockedAppsRepository(
         LockedAppDatabase.getInstance(application).lockedAppDao()
     )
+
+    // Flag to track if locked apps have been loaded
+    private var _lockedAppsLoaded = false
 
     // Color data for the test
     private val _colorMap = MutableLiveData<Map<String, String>>()
@@ -58,7 +66,13 @@ class StroopLockViewModel(application: Application) : AndroidViewModel(applicati
     private val _appToLaunch = MutableLiveData<String?>()
     val appToLaunch: LiveData<String?> = _appToLaunch
 
+    // State Flow for locked apps (alternative to LiveData for modern UI updates)
+    private val _lockedAppsFlow = MutableStateFlow<List<String>>(emptyList())
+    val lockedAppsFlow: StateFlow<List<String>> = _lockedAppsFlow.asStateFlow()
+
     init {
+        LoggingUtil.debug(TAG, "init", "Initializing ViewModel")
+        // Initialize color map
         _colorMap.value = mapOf(
             "Red" to "#FF0000",
             "Green" to "#00FF00",
@@ -71,38 +85,56 @@ class StroopLockViewModel(application: Application) : AndroidViewModel(applicati
             "Purple" to "#8A00E6"
         )
 
+        // Load locked apps initially
+        loadLockedApps()
     }
 
     /**
      * Load locked apps from database
      */
-    class StroopLockViewModel(application: Application) : AndroidViewModel(application) {
-        private var _lockedAppsLoaded = false
-
-        class StroopLockViewModel(
-            private val repository: StroopLockRepository
-        ) : ViewModel() {
-            // Private mutable state flow for locked apps
-            private val _lockedApps = MutableStateFlow<List<String>>(emptyList())
-
-            // Public immutable state flow exposed to the UI
-            val lockedApps: StateFlow<List<String>> = _lockedApps
-
-            // Example method to add a locked app
-            fun addLockedApp(packageName: String) {
-                viewModelScope.launch {
-                    // Perform operation to add locked app
-                    // This is a placeholder - replace with actual repository method
-                    _lockedApps.value = _lockedApps.value + packageName
-                }
+    fun loadLockedApps() {
+        LoggingUtil.debug(TAG, "loadLockedApps", "Loading locked apps from repository")
+        viewModelScope.launch {
+            try {
+                val apps = repository.getAllLockedApps()
+                _lockedApps.value = apps
+                _lockedAppsFlow.value = apps
+                _lockedAppsLoaded = true
+                LoggingUtil.debug(TAG, "loadLockedApps", "Loaded ${apps.size} locked apps")
+            } catch (e: Exception) {
+                LoggingUtil.error(TAG, "loadLockedApps", "Error loading locked apps", e)
+                _lockedApps.value = emptyList()
+                _lockedAppsFlow.value = emptyList()
             }
+        }
+    }
 
-            // Example method to remove a locked app
-            fun removeLockFromApp(packageName: String) {
-                viewModelScope.launch {
-                    // Perform operation to remove locked app
-                    _lockedApps.value = _lockedApps.value.filter { it != packageName }
-                }
+    /**
+     * Add a new app to locked apps
+     */
+    fun addLockedApp(packageName: String) {
+        LoggingUtil.debug(TAG, "addLockedApp", "Adding locked app: $packageName")
+        viewModelScope.launch {
+            try {
+                repository.addLockedApp(packageName)
+                loadLockedApps() // Refresh the list
+            } catch (e: Exception) {
+                LoggingUtil.error(TAG, "addLockedApp", "Error adding locked app", e)
+            }
+        }
+    }
+
+    /**
+     * Remove an app from locked apps
+     */
+    fun removeLockedApp(packageName: String) {
+        LoggingUtil.debug(TAG, "removeLockedApp", "Removing locked app: $packageName")
+        viewModelScope.launch {
+            try {
+                repository.removeLockedApp(packageName)
+                loadLockedApps() // Refresh the list
+            } catch (e: Exception) {
+                LoggingUtil.error(TAG, "removeLockedApp", "Error removing locked app", e)
             }
         }
     }
@@ -111,6 +143,7 @@ class StroopLockViewModel(application: Application) : AndroidViewModel(applicati
      * Generate a new Stroop challenge
      */
     fun generateChallenge() {
+        LoggingUtil.debug(TAG, "generateChallenge", "Generating new challenge")
         val colorMap = _colorMap.value ?: return
         val availableColors = colorMap.keys.toList()
 
@@ -129,6 +162,8 @@ class StroopLockViewModel(application: Application) : AndroidViewModel(applicati
 
         // Generate button options
         generateButtonOptions(availableColors, inkColorName)
+
+        LoggingUtil.debug(TAG, "generateChallenge", "Generated challenge: Word=$randomWord, Ink=$inkColorName")
     }
 
     /**
@@ -156,7 +191,9 @@ class StroopLockViewModel(application: Application) : AndroidViewModel(applicati
      * Check if the selected answer is correct
      */
     fun checkAnswer(selectedColor: String): Boolean {
-        return selectedColor == _expectedAnswer.value
+        val isCorrect = selectedColor == _expectedAnswer.value
+        LoggingUtil.debug(TAG, "checkAnswer", "Checking answer: $selectedColor (expected: ${_expectedAnswer.value}) -> $isCorrect")
+        return isCorrect
     }
 
     /**
@@ -164,10 +201,12 @@ class StroopLockViewModel(application: Application) : AndroidViewModel(applicati
      */
     fun setAppToLaunch(packageName: String?) {
         _appToLaunch.value = packageName
+        LoggingUtil.debug(TAG, "setAppToLaunch", "Set app to launch: $packageName")
     }
 
     /**
      * Calculate appropriate font size for a color word
+     * Reduces font size for longer words to ensure they fit properly
      */
     fun calculateFontSizeForWord(word: String): Float {
         val maxSize = 26f

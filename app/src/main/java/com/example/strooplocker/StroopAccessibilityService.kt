@@ -126,9 +126,7 @@ class StroopAccessibilityService : AccessibilityService() {
      * @param packageName The package name to check
      */
     private fun performCheckAndLockApp(packageName: String) {
-        val currentTime = System.currentTimeMillis()
         LoggingUtil.debug(TAG, "performCheckAndLockApp", "CHECKING: Is $packageName locked?")
-
         // Skip if a challenge is already in progress
         if (SessionManager.isChallengeInProgress()) {
             LoggingUtil.debug(TAG, "performCheckAndLockApp", "SKIPPING: Challenge already in progress")
