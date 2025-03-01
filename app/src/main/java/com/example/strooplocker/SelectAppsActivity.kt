@@ -126,12 +126,14 @@ class SelectAppsActivity : AppCompatActivity() {
                     Toast.makeText(this@SelectAppsActivity,
                         "Unlocked: ${app.loadLabel(packageManager)}",
                         Toast.LENGTH_SHORT).show()
+                    Log.d(TAG, "Successfully UNLOCKED: ${app.packageName}")
                 } else {
                     // Lock the app
                     LockManager.addLockedApp(this@SelectAppsActivity, app.packageName)
                     Toast.makeText(this@SelectAppsActivity,
                         "Locked: ${app.loadLabel(packageManager)}",
                         Toast.LENGTH_SHORT).show()
+                    Log.d(TAG, "Successfully LOCKED: ${app.packageName}")
                 }
 
                 // Refresh the list
@@ -139,7 +141,7 @@ class SelectAppsActivity : AppCompatActivity() {
                     LockManager.getLockedApps(this@SelectAppsActivity)
                 }
 
-                Log.d(TAG, "Updated locked apps: $updatedLockedApps")
+                Log.d(TAG, "Current locked apps: ${updatedLockedApps.joinToString()}")
                 appsAdapter.updateLockedApps(updatedLockedApps.toSet())
             } catch (e: Exception) {
                 Log.e(TAG, "Error updating app lock state", e)

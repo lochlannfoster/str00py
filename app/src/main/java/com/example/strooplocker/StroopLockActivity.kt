@@ -446,6 +446,7 @@ class StroopLockActivity : AppCompatActivity() {
         }
     }
 
+    // Add this to the onColorSelected method in StroopLockActivity.kt:
     private fun onColorSelected(selectedColor: String) {
         if (selectedColor == correctColor) {
             Log.d(TAG, "Correct answer selected: $selectedColor")
@@ -453,14 +454,21 @@ class StroopLockActivity : AppCompatActivity() {
 
             // Mark challenge as completed
             packageToLaunch?.let { pkg ->
+                Log.d(TAG, "Adding $pkg to completed challenges")
                 completedChallenges.add(pkg)
 
-                // Notify the accessibility service that this package passed the challenge
-                val accessibilityService = applicationContext
-                    .getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
+                // Important: Also notify the accessibility service that this package passed the challenge
+                val accessibilityManager = getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
+                val enabledServices = accessibilityManager.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK)
 
-                // Complete the challenge in the manager
-                ChallengeManager.completeChallenge(true)
+                for (service in enabledServices) {
+                    if (service.id.contains(packageName)) {
+                        Log.d(TAG, "Found our accessibility service, marking challenge completed")
+                        // Service is active, now we'll tell it to mark challenge completed
+                        StroopAccessibilityService.completedChallenges.add(pkg)
+                        break
+                    }
+                }
 
                 // Add a short delay before launching app to allow UI feedback
                 challengeText.postDelayed({
@@ -472,14 +480,8 @@ class StroopLockActivity : AppCompatActivity() {
                 finish()
             }
         } else {
-            Log.d(TAG, "Incorrect answer: $selectedColor, expected: $correctColor")
-            Toast.makeText(this, getString(R.string.incorrect_answer), Toast.LENGTH_SHORT).show()
-
-            // Generate a new challenge
-            generateChallenge()
         }
     }
-
     private fun checkChallengeCompletion(packageName: String): Boolean {
         // Check if the challenge for this package has been completed recently
         return completedChallenges.contains(packageName)
