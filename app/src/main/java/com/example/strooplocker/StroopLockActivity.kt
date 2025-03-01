@@ -301,6 +301,8 @@ class StroopLockActivity : AppCompatActivity() {
      * Generates a new Stroop challenge with random colors.
      * The word and ink color will always be different to create the Stroop effect.
      */
+// app/src/main/java/com/example/strooplocker/StroopLockActivity.kt
+
     private fun generateChallenge() {
         Log.d(TAG, "Generating new challenge - BEGIN")
 
@@ -409,17 +411,15 @@ class StroopLockActivity : AppCompatActivity() {
                 button.setPadding(8, 16, 8, 16)
 
                 // Set a different text color than the button text (maintaining Stroop effect)
-                val textColorIndex = (i + 1) % numButtons
-                val textColorName = shuffledColors[textColorIndex]
-
-                // Get the color resource
-                val textColor = colorMap[textColorName]
-                if (textColor != null) {
-                    button.setTextColor(textColor)
+                // Safely get a different color for the text
+                val textColorIndex = if (numButtons > 1) {
+                    (i + 1) % numButtons
                 } else {
-                    Log.w(TAG, "Could not find color value for '$textColorName', using BLACK")
-                    button.setTextColor(Color.BLACK)
+                    0 // Fallback if we only have one color
                 }
+
+                val textColorName = shuffledColors[textColorIndex]
+                button.setTextColor(colorMap[textColorName] ?: Color.BLACK)
 
                 // Fixed layout parameters for consistent button sizes
                 val params = GridLayout.LayoutParams()
@@ -446,7 +446,6 @@ class StroopLockActivity : AppCompatActivity() {
         }
     }
 
-    // Add this to the onColorSelected method in StroopLockActivity.kt:
     private fun onColorSelected(selectedColor: String) {
         if (selectedColor == correctColor) {
             Log.d(TAG, "Correct answer selected: $selectedColor")
@@ -480,8 +479,15 @@ class StroopLockActivity : AppCompatActivity() {
                 finish()
             }
         } else {
+            // This branch was empty in the original code
+            Log.d(TAG, "Incorrect answer: $selectedColor, expected: $correctColor")
+            Toast.makeText(this, getString(R.string.incorrect_answer), Toast.LENGTH_SHORT).show()
+
+            // Generate a new challenge as per the user stories
+            generateChallenge()
         }
     }
+
     private fun checkChallengeCompletion(packageName: String): Boolean {
         // Check if the challenge for this package has been completed recently
         return completedChallenges.contains(packageName)

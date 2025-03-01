@@ -85,41 +85,53 @@ class StroopAccessibilityService : AccessibilityService() {
             Log.d(TAG, "WINDOW CHANGE: package=$packageName, class=$className")
 
             // Track app switching to detect session endings
-            if (isHomeScreen(packageName) && currentForegroundPackage != null &&
-                completedChallenges.contains(currentForegroundPackage)) {
-                Log.d(TAG, "HOME SCREEN: Ending session for: $currentForegroundPackage")
-                completedChallenges.remove(currentForegroundPackage)
+            if (isHomeScreen(packageName)) {
+                // Returning to home screen should end all sessions
+                Log.d(TAG, "HOME SCREEN: Ending all sessions")
+                val previousPackage = currentForegroundPackage
+                if (previousPackage != null) {
+                    Log.d(TAG, "Removing completed challenge for: $previousPackage")
+                    completedChallenges.remove(previousPackage)
+                }
+                currentForegroundPackage = packageName
             }
-            // If we're switching from a locked app to something else
-            else if (currentForegroundPackage != packageName &&
-                currentForegroundPackage != null &&
-                completedChallenges.contains(currentForegroundPackage)) {
-                Log.d(TAG, "APP SWITCH: Session ended for: $currentForegroundPackage")
-                completedChallenges.remove(currentForegroundPackage)
+            // If we're switching from one app to another
+            else if (currentForegroundPackage != packageName && currentForegroundPackage != null) {
+                Log.d(TAG, "APP SWITCH: From $currentForegroundPackage to $packageName")
+
+                // End session for previous app
+                if (completedChallenges.contains(currentForegroundPackage)) {
+                    Log.d(TAG, "Removing completed challenge for: $currentForegroundPackage")
+                    completedChallenges.remove(currentForegroundPackage)
+                }
+
+                currentForegroundPackage = packageName
+
+                // Check and lock the new app
+                if (packageName != "com.example.strooplocker") {
+                    checkAndLockApp(packageName)
+                }
             }
+            // First app launch or same app (new activity)
+            else if (currentForegroundPackage == null || currentForegroundPackage == packageName) {
+                currentForegroundPackage = packageName
 
-            // Update current foreground package
-            currentForegroundPackage = packageName
-        }
-
-        // Skip events from our own app
-        if (packageName == "com.example.strooplocker") {
-            Log.d(TAG, "SKIPPING: Our own app events")
-            return
-        }
-
-        // Check if the package is in the locked apps list
-        if (eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
-            checkAndLockApp(packageName)
+                // Check and lock on first launch or new activity
+                if (packageName != "com.example.strooplocker") {
+                    checkAndLockApp(packageName)
+                }
+            }
         }
     }
 
     private fun checkAndLockApp(packageName: String) {
-        Log.d(TAG, "CHECKING: Is $packageName locked? (challenge in progress: $challengeInProgress)")
+        // Add current timestamp to help track timing issues
+        val currentTime = System.currentTimeMillis()
+        Log.d(TAG, "CHECKING[$currentTime]: Is $packageName locked? (challenge in progress: $challengeInProgress)")
 
         // Skip if a challenge is already in progress
         if (challengeInProgress) {
-            Log.d(TAG, "SKIPPING: Challenge already in progress")
+            Log.d(TAG, "SKIPPING[$currentTime]: Challenge already in progress")
             return
         }
 
@@ -130,21 +142,38 @@ class StroopAccessibilityService : AccessibilityService() {
                 )
 
                 val lockedApps = repository.getAllLockedApps()
-                Log.d(TAG, "LOCKED APPS: ${lockedApps.joinToString()}")
+                Log.d(TAG, "LOCKED APPS[$currentTime]: ${lockedApps.joinToString()}")
+                Log.d(TAG, "COMPLETED CHALLENGES[$currentTime]: ${completedChallenges.joinToString()}")
 
                 val isLocked = lockedApps.contains(packageName)
                 val isCompleted = completedChallenges.contains(packageName)
 
-                Log.d(TAG, "APP STATUS: $packageName | Locked: $isLocked | Completed: $isCompleted")
+                Log.d(TAG, "APP STATUS[$currentTime]: $packageName | Locked: $isLocked | Completed: $isCompleted")
 
                 // Only launch challenge if app is locked and not recently completed
                 if (isLocked && !isCompleted) {
                     // Set challenge in progress to prevent multiple launches
-                    challengeInProgress = true
-                    pendingLockedPackage = packageName
+                    // Use synchronized block to avoid race conditions
+                    synchronized(this@StroopAccessibilityService) {
+                        if (challengeInProgress) {
+                            Log.d(TAG, "SKIPPING[$currentTime]: Challenge has been started by another thread")
+                            return@synchronized
+                        }
+                        challengeInProgress = true
+                        pendingLockedPackage = packageName
+
+                        // Set a timeout in case the challenge doesn't complete
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            if (challengeInProgress && pendingLockedPackage == packageName) {
+                                Log.w(TAG, "TIMEOUT[$currentTime]: Challenge timed out for $packageName")
+                                challengeInProgress = false
+                                pendingLockedPackage = null
+                            }
+                        }, 30000) // 30-second timeout
+                    }
 
                     withContext(Dispatchers.Main) {
-                        Log.d(TAG, "LAUNCHING CHALLENGE for: $packageName")
+                        Log.d(TAG, "LAUNCHING CHALLENGE[$currentTime] for: $packageName")
 
                         // Show toast for debugging
                         Toast.makeText(
@@ -161,12 +190,12 @@ class StroopAccessibilityService : AccessibilityService() {
                         startActivity(lockIntent)
                     }
                 } else if (isCompleted) {
-                    Log.d(TAG, "SKIPPING: Challenge already completed for $packageName")
+                    Log.d(TAG, "SKIPPING[$currentTime]: Challenge already completed for $packageName")
                 } else if (!isLocked) {
-                    Log.d(TAG, "SKIPPING: $packageName is not locked")
+                    Log.d(TAG, "SKIPPING[$currentTime]: $packageName is not locked")
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "ERROR checking locked status: ${e.message}")
+                Log.e(TAG, "ERROR[$currentTime] checking locked status: ${e.message}")
                 challengeInProgress = false
             }
         }
@@ -184,6 +213,15 @@ class StroopAccessibilityService : AccessibilityService() {
     fun resetChallenge(packageName: String) {
         completedChallenges.remove(packageName)
         Log.d(TAG, "RESET: Challenge for $packageName")
+    }
+
+    fun resetAllChallenges() {
+        synchronized(this) {
+            challengeInProgress = false
+            pendingLockedPackage = null
+            completedChallenges.clear()
+            Log.d(TAG, "RESET: All challenges and state reset")
+        }
     }
 
     override fun onInterrupt() {
