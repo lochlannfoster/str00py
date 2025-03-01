@@ -1,4 +1,3 @@
-// app/src/main/java/com/example/strooplocker/SessionManager.kt
 package com.example.strooplocker
 
 import android.os.Handler
@@ -6,45 +5,57 @@ import android.os.Looper
 import android.util.Log
 
 /**
- * SessionManager is a singleton that manages app sessions and challenge states across the application.
+ * SessionManager manages app session states and challenge tracking.
  *
- * It serves as the single source of truth for tracking which apps have been unlocked and
- * ensures consistent behavior when determining if an app should be locked or allowed to run
- * without a challenge. This manager coordinates the state between different components of the
- * application to provide a seamless experience.
- *
- * Key features:
- * - Tracks completed challenges for apps
- * - Manages challenge state for in-progress challenges
- * - Handles session timeout and resets
- * - Provides app switching detection and handling
+ * This singleton provides a centralized way to track app challenge completions,
+ * manage session lifecycles, and handle app switching scenarios.
  */
 object SessionManager {
     private const val TAG = "SessionManager"
+    private const val CHALLENGE_TIMEOUT_MS = 30000L // 30 seconds
 
-    // Set of packages that have completed challenges in this session
+    // Mutable set to track completed challenges
     private val completedChallenges = mutableSetOf<String>()
 
-    // Flag to track if a challenge is currently in progress
+    // Flags to track challenge and session states
     @Volatile
     private var challengeInProgress = false
 
-    // The package that's currently being challenged
     @Volatile
     private var currentChallengePackage: String? = null
 
-    // Timeout handler for challenges
-    private val timeoutHandler = Handler(Looper.getMainLooper())
-    private const val CHALLENGE_TIMEOUT_MS = 30000L // 30 seconds
+    // Lazy-initialized handler with fallback for testing
+    private var timeoutHandler: Handler = createDefaultHandler()
 
     /**
-     * Starts a challenge for the given package.
+     * Creates a default Handler using the main Looper.
+     * Provides a fallback mechanism for testing scenarios.
+     */
+    private fun createDefaultHandler(): Handler {
+        return try {
+            Handler(Looper.getMainLooper())
+        } catch (e: Exception) {
+            // Fallback for testing environments
+            Handler()
+        }
+    }
+
+    /**
+     * Testing method to replace the handler for unit testing purposes.
+     * This allows mocking the Handler during test runs.
      *
-     * This method initiates a new challenge state and sets a timeout to automatically
-     * reset the challenge if it's not completed within a certain time period.
+     * @param handler Replacement Handler for testing
+     */
+    @Suppress("TestOnly")
+    fun replaceHandlerForTesting(handler: Handler) {
+        timeoutHandler = handler
+    }
+
+    /**
+     * Starts a challenge for a specific package.
      *
-     * @param packageName The package to challenge
-     * @return true if the challenge was started, false if one is already in progress
+     * @param packageName Package to challenge
+     * @return true if challenge started successfully, false if already in progress
      */
     @Synchronized
     fun startChallenge(packageName: String): Boolean {
@@ -58,7 +69,7 @@ object SessionManager {
         currentChallengePackage = packageName
 
         // Set a timeout to reset the challenge state if it doesn't complete
-        timeoutHandler.removeCallbacksAndMessages(null) // Remove any existing timeouts
+        timeoutHandler.removeCallbacksAndMessages(null)
         timeoutHandler.postDelayed({
             if (challengeInProgress && currentChallengePackage == packageName) {
                 Log.w(TAG, "Challenge timed out for $packageName")
@@ -70,12 +81,9 @@ object SessionManager {
     }
 
     /**
-     * Marks a challenge as completed, allowing access to the app.
+     * Completes a challenge for a specific package.
      *
-     * Once a challenge is completed, the app will be accessible without
-     * facing another challenge until the session ends.
-     *
-     * @param packageName The package that completed the challenge
+     * @param packageName Package that completed the challenge
      */
     @Synchronized
     fun completeChallenge(packageName: String) {
@@ -83,14 +91,14 @@ object SessionManager {
         completedChallenges.add(packageName)
         challengeInProgress = false
         currentChallengePackage = null
-        timeoutHandler.removeCallbacksAndMessages(null) // Cancel timeout
+        timeoutHandler.removeCallbacksAndMessages(null)
     }
 
     /**
-     * Checks if a package has completed its challenge in this session.
+     * Checks if a package has completed its challenge.
      *
-     * @param packageName The package to check
-     * @return true if the package has completed its challenge, false otherwise
+     * @param packageName Package to check
+     * @return true if challenge completed, false otherwise
      */
     fun isChallengeCompleted(packageName: String): Boolean {
         val isCompleted = completedChallenges.contains(packageName)
@@ -101,28 +109,21 @@ object SessionManager {
     /**
      * Checks if a challenge is currently in progress.
      *
-     * @return true if a challenge is in progress, false otherwise
+     * @return true if challenge in progress, false otherwise
      */
-    fun isChallengeInProgress(): Boolean {
-        return challengeInProgress
-    }
+    fun isChallengeInProgress(): Boolean = challengeInProgress
 
     /**
-     * Gets the package name that's currently being challenged, if any.
+     * Gets the currently challenged package.
      *
-     * @return The package name or null if no challenge is in progress
+     * @return Package name of current challenge, or null
      */
-    fun getCurrentChallengePackage(): String? {
-        return currentChallengePackage
-    }
+    fun getCurrentChallengePackage(): String? = currentChallengePackage
 
     /**
-     * Ends a session for a package, requiring it to complete a new challenge next time.
+     * Ends a session for a specific package.
      *
-     * This is typically called when the user switches away from an app or returns to
-     * the home screen.
-     *
-     * @param packageName The package to end the session for
+     * @param packageName Package to end session for
      */
     @Synchronized
     fun endSession(packageName: String) {
@@ -131,10 +132,7 @@ object SessionManager {
     }
 
     /**
-     * Resets the current challenge state without completing it.
-     *
-     * This is used when a challenge needs to be canceled, such as when it times out
-     * or when the user force-closes the challenge.
+     * Resets the current challenge state.
      */
     @Synchronized
     fun resetChallenge() {
@@ -145,10 +143,7 @@ object SessionManager {
     }
 
     /**
-     * Ends all active sessions, requiring all apps to complete new challenges.
-     *
-     * This is typically called when the service is started or stopped, or when
-     * the device is rebooted.
+     * Ends all active sessions.
      */
     @Synchronized
     fun endAllSessions() {
@@ -160,30 +155,23 @@ object SessionManager {
     /**
      * Handles app switch events to manage sessions.
      *
-     * When the user switches from one app to another, this method ensures that
-     * the session for the previous app is ended properly.
-     *
-     * @param fromPackage The package being switched from
-     * @param toPackage The package being switched to
+     * @param fromPackage Previous package
+     * @param toPackage New package
      */
     @Synchronized
     fun handleAppSwitch(fromPackage: String?, toPackage: String) {
         Log.d(TAG, "App switch: $fromPackage -> $toPackage")
 
-        // End session for previous app if it exists
+        // End session for previous app if it's different
         if (fromPackage != null && fromPackage != toPackage) {
             endSession(fromPackage)
         }
     }
 
     /**
-     * Gets a debug list of all completed challenges.
+     * Retrieves list of completed challenges.
      *
-     * This is useful for debugging and logging purposes.
-     *
-     * @return A list of all packages that have completed challenges
+     * @return List of package names with completed challenges
      */
-    fun getCompletedChallenges(): List<String> {
-        return completedChallenges.toList()
-    }
+    fun getCompletedChallenges(): List<String> = completedChallenges.toList()
 }

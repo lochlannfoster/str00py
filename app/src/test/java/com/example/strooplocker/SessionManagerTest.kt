@@ -1,25 +1,68 @@
 package com.example.strooplocker
 
+import android.os.Handler
+import android.os.Looper
+import org.junit.After
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.mockito.MockedStatic
+import org.mockito.Mockito
+import org.mockito.junit.MockitoJUnitRunner
 import org.junit.Assert.*
+import org.mockito.Mock
+import org.mockito.MockitoAnnotations
+import org.mockito.Mockito.doNothing
 
 /**
  * Unit tests for [SessionManager]
  *
- * These tests verify that the SessionManager correctly manages app sessions,
- * including starting and completing challenges, tracking session state,
- * and handling timeouts.
+ * These tests verify the SessionManager's ability to track challenges,
+ * manage app sessions, and handle state transitions.
+ *
+ * We use comprehensive mocking to simulate Android's Handler and Looper
+ * behavior without requiring an actual Android runtime.
  */
+@RunWith(MockitoJUnitRunner::class)
 class SessionManagerTest {
 
     private val testPackage1 = "com.example.app1"
     private val testPackage2 = "com.example.app2"
 
+    @Mock
+    private lateinit var mockHandler: Handler
+
+    private lateinit var looperMock: MockedStatic<Looper>
+    private lateinit var handlerMock: MockedStatic<Handler>
+
     @Before
     fun setup() {
-        // Reset the SessionManager state before each test
+        // Initialize mocks
+        MockitoAnnotations.openMocks(this)
+
+        // Mock Looper to prevent real Looper initialization
+        looperMock = Mockito.mockStatic(Looper::class.java)
+        looperMock.`when`<Looper> { Looper.getMainLooper() }.thenReturn(null)
+
+        // Mock Handler to prevent removeCallbacksAndMessages errors
+        handlerMock = Mockito.mockStatic(Handler::class.java)
+
+        // Create a mock handler that allows method calls without throwing exceptions
+        Mockito.`when`(mockHandler.removeCallbacksAndMessages(null)).thenReturn(null)
+
+        // Replace the lazy-initialized handler in SessionManager
+        // Note: This requires modifying SessionManager to allow handler replacement for testing
+        SessionManager.replaceHandlerForTesting(mockHandler)
+
+        // Reset SessionManager to a clean state before each test
         SessionManager.endAllSessions()
+    }
+
+    @After
+    fun tearDown() {
+        // Close the static mocks
+        looperMock.close()
+        handlerMock.close()
     }
 
     @Test
