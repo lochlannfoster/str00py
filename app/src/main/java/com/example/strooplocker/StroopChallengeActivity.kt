@@ -17,21 +17,24 @@ import kotlin.random.Random
  * StroopChallengeActivity implements the Stroop color-word test as a cognitive challenge
  * before allowing access to a locked app.
  *
- * The challenge presents a color word (e.g., "Red") displayed in a different ink color (e.g., blue).
- * The user must identify the ink color (not the word) by selecting the correct color from a grid.
+ * This activity presents a challenge where a color word (e.g., "Red") is displayed
+ * in a different ink color (e.g., blue). The user must identify the ink color (not the word)
+ * by selecting the correct color name from a grid of options. This implements a "double Stroop"
+ * challenge as described in the app requirements.
+ *
+ * The challenge creates cognitive friction that helps users be more mindful before
+ * accessing potentially distracting apps.
  */
 class StroopChallengeActivity : AppCompatActivity() {
     companion object {
         private const val TAG = "StroopChallenge"
     }
 
-    // The color word displayed to the user
-    private lateinit var challengeText: TextView
+    // UI elements
+    private lateinit var challengeText: TextView  // The color word displayed to the user
+    private lateinit var colorGrid: GridLayout    // Grid of color options
 
-    // Grid of color options
-    private lateinit var colorGrid: GridLayout
-
-    // Maps color names to their RGB values
+    // Maps color names to their RGB values for consistent display
     private val colorMap = mapOf(
         "Red" to Color.rgb(255, 0, 0),
         "Green" to Color.rgb(0, 255, 0),
@@ -50,6 +53,9 @@ class StroopChallengeActivity : AppCompatActivity() {
     // The app to launch after successful challenge
     private var packageToLaunch: String? = null
 
+    /**
+     * Initializes the activity, sets up UI components, and generates the first challenge.
+     */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_stroop_challenge)
@@ -73,6 +79,12 @@ class StroopChallengeActivity : AppCompatActivity() {
     /**
      * Generates a new Stroop challenge with random colors.
      * The word and ink color will always be different to create the Stroop effect.
+     *
+     * This method:
+     * 1. Selects a random color name as the word
+     * 2. Selects a different random color for the ink
+     * 3. Sets up the UI to display the word in the chosen ink color
+     * 4. Creates the grid of buttons for answering
      */
     private fun generateChallenge() {
         // Get available colors
@@ -104,6 +116,12 @@ class StroopChallengeActivity : AppCompatActivity() {
     /**
      * Creates the grid of color buttons for the user to select from.
      * Each button shows a color name in a different color to maintain the Stroop effect.
+     *
+     * This implements the second part of the "double Stroop" challenge, where the
+     * color names on the buttons are displayed in different ink colors to create
+     * additional cognitive friction.
+     *
+     * @param colorNames List of available color names
      */
     private fun createColorButtons(colorNames: List<String>) {
         // Clear existing buttons
@@ -137,9 +155,11 @@ class StroopChallengeActivity : AppCompatActivity() {
     }
 
     /**
-     * Handles user selection of a color.
+     * Handles user selection of a color button.
      * If correct, launches the locked app.
      * If incorrect, generates a new challenge.
+     *
+     * @param selectedColor The color name selected by the user
      */
     private fun onColorSelected(selectedColor: String) {
         if (selectedColor == correctColor) {
@@ -159,7 +179,8 @@ class StroopChallengeActivity : AppCompatActivity() {
     }
 
     /**
-     * Launches the previously locked app.
+     * Launches the previously locked app after a successful challenge.
+     * Closes this activity when done.
      */
     private fun launchLockedApp() {
         packageToLaunch?.let { packageName ->
@@ -178,7 +199,7 @@ class StroopChallengeActivity : AppCompatActivity() {
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error launching app: $packageName", e)
-                Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, getString(R.string.toast_error_generic, e.message), Toast.LENGTH_LONG).show()
             }
         }
     }

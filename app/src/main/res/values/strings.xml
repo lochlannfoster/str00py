@@ -1,18 +1,66 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">StroopLocker</string>
+    <!-- App name and basic labels -->
+    <string name="app_name">str00py</string>
     <string name="settings">Settings</string>
     <string name="stats">Stats</string>
     <string name="exit">Exit</string>
-    <string name="app_description">Lock apps behind a cognitive challenge to prevent mindless scrolling</string>
-    <string name="accessibility_service_label">Stroop Lock Service</string>
-    <string name="accessibility_service_description">Monitors app launches to prevent mindless scrolling</string>
-    <string name="select_app">Select App to Lock</string>
+    <string name="app_description">Lock apps behind a cognitive challenge to aid in mindful scrolling</string>
+
+    <!-- Accessibility service -->
+    <string name="accessibility_service_label">str00py Service</string>
+    <string name="accessibility_service_description">Monitors app launches to aid in mindful scrolling</string>
+
+    <!-- Main UI elements -->
+    <string name="select_app">Select App...k</string>
     <string name="enable_accessibility">Enable Service</string>
     <string name="correct_answer">Correct!</string>
     <string name="incorrect_answer">Incorrect! Try again.</string>
-    <string name="service_not_enabled">Stroop Accessibility Service is NOT enabled. Tap \'Enable Service\' if you wish to activate it.</string>
+    <string name="service_not_enabled">Service is NOT enabled. Tap \'Enable Service\' to activate..</string>
     <string name="no_locked_app">No locked app selected!</string>
     <string name="unable_to_launch">Unable to launch %s</string>
     <string name="app_locked">Locked app set to: %s</string>
+
+    <!-- Previously hardcoded toast messages -->
+    <string name="toast_accessibility_enabled">Accessibility service enabled!</string>
+    <string name="toast_accessibility_disabled">Accessibility service not enabled</string>
+    <string name="toast_overlay_granted">Overlay permission granted!</string>
+    <string name="toast_overlay_needed">Overlay permission needed for full functionality</string>
+    <string name="toast_all_permissions_enabled">All permissions are enabled!</string>
+    <string name="toast_error_colors">Error: Could not initialize challenge colors</string>
+    <string name="toast_error_not_enough_colors">Error: Not enough colors available</string>
+    <string name="toast_error_buttons">Error creating color buttons: %s</string>
+    <string name="toast_error_initialize">Error: Could not initialize challenge: %s</string>
+    <string name="toast_service_activated">str00py Service activated</string>
+    <string name="toast_challenge_for">str00py challenge for: %s</string>
+    <string name="toast_no_apps">No lockable apps found on device</string>
+    <string name="toast_error_loading_apps">Error loading apps: %s</string>
+    <string name="toast_app_unlocked">Unlocked: %s</string>
+    <string name="toast_app_locked">Locked: %s</string>
+    <string name="toast_error_generic">Error: %s</string>
+
+    <!-- Previously hardcoded dialog messages -->
+    <string name="dialog_welcome_title">Welcome to str00py</string>
+    <string name="dialog_welcome_message">This app helps aid mindful scrolling by requiring you to solve a quick cognitive challenge before using locked apps.\n\nTo get started, you\'ll need to grant a few permissions.</string>
+    <string name="dialog_get_started">Get Started</string>
+    <string name="dialog_permissions_title">Required Permissions</string>
+    <string name="dialog_permissions_message">Please enable the following permissions:\n\n%s\n\nYou\'ll be guided through each permission.</string>
+    <string name="dialog_continue">Continue</string>
+    <string name="dialog_later">Later</string>
+    <string name="dialog_enable_accessibility_title">Enable Accessibility Service</string>
+    <string name="dialog_enable_accessibility_message">1. Find \"str00py Service\" in the list\n2. Toggle it ON\n3. Confirm in the dialog\n4. Return to this app</string>
+    <string name="dialog_open_settings">Open Settings</string>
+    <string name="dialog_overlay_title">Display Over Other Apps</string>
+    <string name="dialog_overlay_message">str00py needs permission to display challenges over other apps.</string>
+
+    <!-- Accessibility permission descriptions -->
+    <string name="accessibility_permission_item">• Accessibility Service: Required to detect when you launch a locked app</string>
+    <string name="overlay_permission_item">• Display Over Other Apps: Required to show challenges over locked apps</string>
+
+    <!-- Item status in app selection list -->
+    <string name="app_status_locked">Locked</string>
+    <string name="app_status_unlocked">Unlocked</string>
+
+    <!-- Button states -->
+    <string name="all_permissions_ok">All Permissions OK</string>
 </resources>

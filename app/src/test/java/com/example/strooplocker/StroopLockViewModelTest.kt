@@ -1,10 +1,10 @@
-@file:Suppress("UNCHECKED_CAST")
-
 package com.example.strooplocker
 
 import android.app.Application
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
+import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.Observer
 import com.example.strooplocker.data.LockedAppDao
 import com.example.strooplocker.data.LockedAppDatabase
 import com.example.strooplocker.data.LockedAppsRepository
@@ -25,15 +25,18 @@ import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
 import org.mockito.junit.MockitoJUnitRunner
 import org.junit.Assert.*
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 
 /**
  * Unit tests for StroopLockViewModel
  *
- * Using MockitoJUnitRunner.Silent to avoid unnecessary stubbing errors since our
- * ViewModel initializes with repository calls that not all tests care about.
+ * These tests verify that the ViewModel correctly manages challenge state,
+ * interacts with the repository, and provides proper data to the UI.
  */
 @ExperimentalCoroutinesApi
-@RunWith(MockitoJUnitRunner.Silent::class) // Use Silent version to avoid unnecessary stubbing errors
+@RunWith(MockitoJUnitRunner::class)
 class StroopLockViewModelTest {
 
     @get:Rule
@@ -85,63 +88,62 @@ class StroopLockViewModelTest {
     }
 
     @Test
-    fun `load locked apps calls repository`() = runTest {
-        // Arrange
-        val expectedApps = listOf("app1", "app2")
-
-        // Re-stub the repository with our test data
-        Mockito.`when`(mockRepository.getAllLockedApps()).thenReturn(expectedApps)
-
+    fun `generateChallenge creates valid challenge with different word and ink color`() = runTest {
         // Act
-        viewModel.loadLockedApps()
+        viewModel.generateChallenge()
         testDispatcher.scheduler.advanceUntilIdle()
 
-        // Assert - we expect at least one call (there was also one during init)
-        verify(mockRepository, times(2)).getAllLockedApps()
+        // Assert - get the LiveData values
+        val challengeWord = viewModel.challengeWord.getOrAwaitValue()
+        val inkColor = viewModel.inkColor.getOrAwaitValue()
+        val expectedAnswer = viewModel.expectedAnswer.getOrAwaitValue()
 
-        // Additional assertions to check LiveData
-        val loadedApps = viewModel.lockedApps.value
-        assertEquals(expectedApps, loadedApps)
+        // Verify the challenge is valid
+        assertNotNull("Challenge word should not be null", challengeWord)
+        assertNotNull("Ink color should not be null", inkColor)
+        assertNotEquals("Word and ink color should be different", challengeWord, inkColor)
+        assertEquals("Expected answer should match ink color", inkColor, expectedAnswer)
+
+        // Verify buttons are generated
+        val buttonLabels = viewModel.buttonLabels.getOrAwaitValue()
+        val buttonColors = viewModel.buttonColors.getOrAwaitValue()
+
+        assertNotNull("Button labels should not be null", buttonLabels)
+        assertNotNull("Button colors should not be null", buttonColors)
+        assertTrue("Button labels should contain the correct answer",
+            buttonLabels.contains(expectedAnswer))
     }
 
     @Test
-    fun checkAnswer_correctAnswer_returnsTrue() {
+    fun `checkAnswer returns true for correct answer`() {
         // Arrange
         val expectedAnswer = "Blue"
-
-        // Use reflection to set the expected answer
-        val field = StroopLockViewModel::class.java.getDeclaredField("_expectedAnswer")
-        field.isAccessible = true
-        (field.get(viewModel) as MutableLiveData<String>).value = expectedAnswer
+        setExpectedAnswer(expectedAnswer)
 
         // Act
         val result = viewModel.checkAnswer(expectedAnswer)
 
         // Assert
-        assertTrue(result)
+        assertTrue("Should return true for correct answer", result)
     }
 
     @Test
-    fun checkAnswer_incorrectAnswer_returnsFalse() {
+    fun `checkAnswer returns false for incorrect answer`() {
         // Arrange
-        val correctAnswer = "Blue"
+        val expectedAnswer = "Blue"
         val wrongAnswer = "Red"
-
-        // Use reflection to set the expected answer
-        val field = StroopLockViewModel::class.java.getDeclaredField("_expectedAnswer")
-        field.isAccessible = true
-        (field.get(viewModel) as MutableLiveData<String>).value = correctAnswer
+        setExpectedAnswer(expectedAnswer)
 
         // Act
         val result = viewModel.checkAnswer(wrongAnswer)
 
         // Assert
-        assertFalse(result)
+        assertFalse("Should return false for incorrect answer", result)
     }
 
     @Test
-    fun loadLockedApps_callsRepository() = runTest {
-        // Arrange with specific test data
+    fun `loadLockedApps calls repository and updates LiveData`() = runTest {
+        // Arrange
         val testApps = listOf("app1", "app2")
         Mockito.`when`(mockRepository.getAllLockedApps()).thenReturn(testApps)
 
@@ -149,18 +151,91 @@ class StroopLockViewModelTest {
         viewModel.loadLockedApps()
         testDispatcher.scheduler.advanceUntilIdle()
 
-        // Assert - verify repository was called more than once (init + our explicit call)
+        // Assert
         verify(mockRepository, times(2)).getAllLockedApps()
-
-        // Verify the data was properly set
-        assertEquals(testApps, viewModel.lockedApps.value)
+        assertEquals(testApps, viewModel.lockedApps.getOrAwaitValue())
     }
 
     @Test
-    fun calculateFontSizeForWord_returnsCorrectSize() {
+    fun `addLockedApp calls repository and refreshes list`() = runTest {
         // Arrange
-        val shortWord = "Red"
-        val longWord = "Purple"
-        val veryLongWord = "UltraViolet"
+        val packageName = "com.example.app1"
+
+        // Act
+        viewModel.addLockedApp(packageName)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Assert
+        verify(mockRepository).addLockedApp(packageName)
+        verify(mockRepository, times(2)).getAllLockedApps()
+    }
+
+    @Test
+    fun `removeLockedApp calls repository and refreshes list`() = runTest {
+        // Arrange
+        val packageName = "com.example.app1"
+
+        // Act
+        viewModel.removeLockedApp(packageName)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Assert
+        verify(mockRepository).removeLockedApp(packageName)
+        verify(mockRepository, times(2)).getAllLockedApps()
+    }
+
+    @Test
+    fun `setAppToLaunch updates appToLaunch LiveData`() {
+        // Arrange
+        val packageName = "com.example.app1"
+
+        // Act
+        viewModel.setAppToLaunch(packageName)
+
+        // Assert
+        assertEquals(packageName, viewModel.appToLaunch.getOrAwaitValue())
+    }
+
+    @Test
+    fun `calculateFontSizeForWord returns appropriate size based on word length`() {
+        // Test cases with different word lengths
+        assertEquals(26f, viewModel.calculateFontSizeForWord("Red"), 0.01f)
+        assertEquals(24.5f, viewModel.calculateFontSizeForWord("Blue"), 0.01f)
+        assertEquals(21.5f, viewModel.calculateFontSizeForWord("Yellow"), 0.01f)
+        assertEquals(16f, viewModel.calculateFontSizeForWord("UltraViolet"), 0.01f)
+    }
+
+    // Helper method to set the expected answer for testing
+    private fun setExpectedAnswer(answer: String) {
+        val field = StroopLockViewModel::class.java.getDeclaredField("_expectedAnswer")
+        field.isAccessible = true
+        (field.get(viewModel) as MutableLiveData<String>).value = answer
+    }
+
+    // Extension function to get LiveData value with a timeout
+    @Throws(InterruptedException::class, TimeoutException::class)
+    private fun <T> LiveData<T>.getOrAwaitValue(
+        time: Long = 2,
+        timeUnit: TimeUnit = TimeUnit.SECONDS
+    ): T {
+        var data: T? = null
+        val latch = CountDownLatch(1)
+        val observer = object : Observer<T> {
+            override fun onChanged(value: T) {
+                data = value
+                latch.countDown()
+                this@getOrAwaitValue.removeObserver(this)
+            }
+        }
+        this.observeForever(observer)
+
+        // Don't wait indefinitely if the LiveData is not set
+        if (!latch.await(time, timeUnit)) {
+            this.removeObserver(observer)
+            throw TimeoutException("LiveData value was never set.")
+        }
+
+        @Suppress("UNCHECKED_CAST")
+        return data as T
     }
 }

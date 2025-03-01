@@ -17,6 +17,19 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+/**
+ * The AccessibilityService implementation for str00py.
+ *
+ * This service monitors app launches and detects when the user tries to open a locked app.
+ * When a locked app is detected, it launches the challenge activity, requiring the user to
+ * complete a cognitive challenge before accessing the app.
+ *
+ * Key features:
+ * - Monitors app launches and switches
+ * - Detects when locked apps are opened
+ * - Launches challenge activities
+ * - Manages app sessions
+ */
 class StroopAccessibilityService : AccessibilityService() {
 
     companion object {
@@ -30,6 +43,10 @@ class StroopAccessibilityService : AccessibilityService() {
     // Flag to track if service is currently active
     private var isServiceActive = false
 
+    /**
+     * Called when the service is connected and ready.
+     * Configures the service to monitor app launches and switches.
+     */
     override fun onServiceConnected() {
         super.onServiceConnected()
         LoggingUtil.debug(TAG, "onServiceConnected", "Configuring accessibility service")
@@ -50,7 +67,7 @@ class StroopAccessibilityService : AccessibilityService() {
 
             // Show a toast to confirm service is running
             Handler(Looper.getMainLooper()).post {
-                Toast.makeText(applicationContext, "Stroop Lock Service activated", Toast.LENGTH_SHORT).show()
+                Toast.makeText(applicationContext, getString(R.string.toast_service_activated), Toast.LENGTH_SHORT).show()
             }
         } catch (e: Exception) {
             LoggingUtil.error(TAG, "onServiceConnected", "Error configuring accessibility service", e)
@@ -58,7 +75,13 @@ class StroopAccessibilityService : AccessibilityService() {
         }
     }
 
-    // Helper method to detect home screen
+    /**
+     * Detects if a package name represents a home screen launcher.
+     * Used to identify when the user returns to the home screen.
+     *
+     * @param packageName The package name to check
+     * @return true if the package is likely a home screen launcher
+     */
     private fun isHomeScreen(packageName: String): Boolean {
         return packageName.contains("launcher") ||
                 packageName.contains("home") ||
@@ -66,6 +89,12 @@ class StroopAccessibilityService : AccessibilityService() {
                 packageName == "com.android.launcher"
     }
 
+    /**
+     * Called when an accessibility event is received.
+     * Monitors app launches and switches to detect when locked apps are opened.
+     *
+     * @param event The accessibility event that was received
+     */
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null || !isServiceActive) return
 
@@ -123,6 +152,8 @@ class StroopAccessibilityService : AccessibilityService() {
 
     /**
      * Checks if the current app is locked and shows the challenge if needed.
+     * This is the core logic that determines when to present a challenge.
+     *
      * @param packageName The package name to check
      */
     private fun performCheckAndLockApp(packageName: String) {
@@ -165,7 +196,7 @@ class StroopAccessibilityService : AccessibilityService() {
                             // Show toast for debugging
                             Toast.makeText(
                                 applicationContext,
-                                "Stroop challenge for: $packageName",
+                                getString(R.string.toast_challenge_for, packageName),
                                 Toast.LENGTH_SHORT
                             ).show()
 
@@ -189,17 +220,24 @@ class StroopAccessibilityService : AccessibilityService() {
         }
     }
 
+    /**
+     * Called when the service is interrupted.
+     * Resets the service state and any active challenges.
+     */
     override fun onInterrupt() {
         LoggingUtil.warning(TAG, "onInterrupt", "Accessibility service interrupted!")
         isServiceActive = false
         SessionManager.resetChallenge()
     }
 
+    /**
+     * Called when the service is being destroyed.
+     * Cleans up any active sessions and challenges.
+     */
     override fun onDestroy() {
         super.onDestroy()
         LoggingUtil.debug(TAG, "onDestroy", "Service destroyed")
         isServiceActive = false
         SessionManager.endAllSessions()
     }
-
 }
