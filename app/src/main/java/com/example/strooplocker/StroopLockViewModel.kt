@@ -8,12 +8,12 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.example.strooplocker.data.LockedAppDatabase
-import com.example.strooplocker.data.LockedAppRepository
+import com.example.strooplocker.data.LockedAppsRepository
 import kotlinx.coroutines.launch
 
 class StroopLockViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val repository = LockedAppRepository(
+    private val repository = LockedAppsRepository(
         LockedAppDatabase.getInstance(application).lockedAppDao()
     )
 

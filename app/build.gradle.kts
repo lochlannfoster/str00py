@@ -14,10 +14,8 @@ android {
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
+
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        testOptions {
-            unitTests.isReturnDefaultValues = true
-        }
     }
 
     buildTypes {
@@ -31,35 +29,23 @@ android {
     }
 
     buildFeatures {
-        buildConfig = true  // Explicitly enable buildConfig
-        viewBinding = true  // Keep this if you're using view binding
+        buildConfig = true
+        viewBinding = true
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlin {
+        jvmToolchain(17)
     }
 
     kotlinOptions {
-        jvmTarget = "1.8"
-    }
-    buildToolsVersion = "35.0.0"
-
-    testOptions {
-        unitTests.isReturnDefaultValues = true
-    }
-
-    tasks.withType<org.jetbrains.kotlin.gradle.internal.KaptTask> {
-        kotlinOptions.jvmTarget = "1.8"
-    }
-
-    android.lint {
-        warning += "InvalidPackage"
-        disable += "OldTargetApi"
-        disable += "Deprecation"
+        jvmTarget = "17"
     }
 }
-
 
 dependencies {
     // Core Android dependencies
@@ -92,10 +78,4 @@ dependencies {
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
     androidTestImplementation("androidx.test:runner:1.5.2")
     androidTestImplementation("androidx.test:rules:1.5.0")
-}
-
-tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
-    kotlinOptions {
-        jvmTarget = "11"
-    }
 }

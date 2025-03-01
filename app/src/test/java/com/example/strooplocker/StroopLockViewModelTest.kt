@@ -62,9 +62,12 @@ class StroopLockViewModelTest {
         Mockito.`when`(mockDb.lockedAppDao()).thenReturn(mockDao)
         Mockito.`when`(mockApplication.applicationContext).thenReturn(mockApplication)
 
+        // Stub the repository's getAllLockedApps method in initialization
+        Mockito.`when`(mockRepository.getAllLockedApps()).thenReturn(listOf())
+
         viewModel = StroopLockViewModel(mockApplication)
 
-        // Replace repository with mock
+        // Replace repository with mock to control method calls
         val field = StroopLockViewModel::class.java.getDeclaredField("repository")
         field.isAccessible = true
         field.set(viewModel, mockRepository)
@@ -119,8 +122,8 @@ class StroopLockViewModelTest {
         viewModel.loadLockedApps()
         testDispatcher.scheduler.advanceUntilIdle()
 
-        // Assert - verify repository was called
-        Mockito.verify(mockRepository, times(1)).getAllLockedApps()
+        // Assert - verify repository was called exactly once
+        verify(mockRepository, times(1)).getAllLockedApps()
     }
 
     @Test
