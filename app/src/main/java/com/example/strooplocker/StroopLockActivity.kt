@@ -454,20 +454,9 @@ class StroopLockActivity : AppCompatActivity() {
             // Mark challenge as completed
             packageToLaunch?.let { pkg ->
                 Log.d(TAG, "Adding $pkg to completed challenges")
-                completedChallenges.add(pkg)
 
-                // Important: Also notify the accessibility service that this package passed the challenge
-                val accessibilityManager = getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
-                val enabledServices = accessibilityManager.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK)
-
-                for (service in enabledServices) {
-                    if (service.id.contains(packageName)) {
-                        Log.d(TAG, "Found our accessibility service, marking challenge completed")
-                        // Service is active, now we'll tell it to mark challenge completed
-                        StroopAccessibilityService.completedChallenges.add(pkg)
-                        break
-                    }
-                }
+                // Use SessionManager to track completion
+                SessionManager.completeChallenge(pkg)
 
                 // Add a short delay before launching app to allow UI feedback
                 challengeText.postDelayed({
@@ -479,7 +468,7 @@ class StroopLockActivity : AppCompatActivity() {
                 finish()
             }
         } else {
-            // This branch was empty in the original code
+            // Incorrect answer
             Log.d(TAG, "Incorrect answer: $selectedColor, expected: $correctColor")
             Toast.makeText(this, getString(R.string.incorrect_answer), Toast.LENGTH_SHORT).show()
 

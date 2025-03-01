@@ -1,11 +1,16 @@
 // app/src/main/java/com/example/strooplocker/SessionManager.kt
 package com.example.strooplocker
 
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 
 /**
  * Manages app sessions and challenge states across the application.
  * Acts as a single source of truth for tracking which apps have been unlocked.
+ *
+ * This class helps ensure consistent behavior when determining if an app
+ * should be locked or allowed to run without a challenge.
  */
 object SessionManager {
     private const val TAG = "SessionManager"
@@ -20,6 +25,10 @@ object SessionManager {
     // The package that's currently being challenged
     @Volatile
     private var currentChallengePackage: String? = null
+
+    // Timeout handler for challenges
+    private val timeoutHandler = Handler(Looper.getMainLooper())
+    private const val CHALLENGE_TIMEOUT_MS = 30000L // 30 seconds
 
     /**
      * Start a challenge for the given package.
@@ -36,6 +45,16 @@ object SessionManager {
         Log.d(TAG, "Starting challenge for $packageName")
         challengeInProgress = true
         currentChallengePackage = packageName
+
+        // Set a timeout to reset the challenge state if it doesn't complete
+        timeoutHandler.removeCallbacksAndMessages(null) // Remove any existing timeouts
+        timeoutHandler.postDelayed({
+            if (challengeInProgress && currentChallengePackage == packageName) {
+                Log.w(TAG, "Challenge timed out for $packageName")
+                resetChallenge()
+            }
+        }, CHALLENGE_TIMEOUT_MS)
+
         return true
     }
 
@@ -49,6 +68,7 @@ object SessionManager {
         completedChallenges.add(packageName)
         challengeInProgress = false
         currentChallengePackage = null
+        timeoutHandler.removeCallbacksAndMessages(null) // Cancel timeout
     }
 
     /**
@@ -57,7 +77,9 @@ object SessionManager {
      * @return true if the package has completed its challenge
      */
     fun isChallengeCompleted(packageName: String): Boolean {
-        return completedChallenges.contains(packageName)
+        val isCompleted = completedChallenges.contains(packageName)
+        Log.d(TAG, "Check if $packageName challenge is completed: $isCompleted")
+        return isCompleted
     }
 
     /**
@@ -66,6 +88,14 @@ object SessionManager {
      */
     fun isChallengeInProgress(): Boolean {
         return challengeInProgress
+    }
+
+    /**
+     * Get the package name that's currently being challenged, if any.
+     * @return The package name or null if no challenge is in progress
+     */
+    fun getCurrentChallengePackage(): String? {
+        return currentChallengePackage
     }
 
     /**
@@ -79,12 +109,24 @@ object SessionManager {
     }
 
     /**
+     * Reset the current challenge state without completing it.
+     */
+    @Synchronized
+    fun resetChallenge() {
+        Log.d(TAG, "Resetting current challenge state")
+        challengeInProgress = false
+        currentChallengePackage = null
+        timeoutHandler.removeCallbacksAndMessages(null)
+    }
+
+    /**
      * End all active sessions, requiring all apps to complete new challenges.
      */
     @Synchronized
     fun endAllSessions() {
         Log.d(TAG, "Ending all sessions")
         completedChallenges.clear()
+        resetChallenge()
     }
 
     /**
@@ -100,5 +142,13 @@ object SessionManager {
         if (fromPackage != null && fromPackage != toPackage) {
             endSession(fromPackage)
         }
+    }
+
+    /**
+     * Get a debug list of all completed challenges
+     * @return A list of all packages that have completed challenges
+     */
+    fun getCompletedChallenges(): List<String> {
+        return completedChallenges.toList()
     }
 }
