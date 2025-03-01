@@ -302,50 +302,77 @@ class StroopLockActivity : AppCompatActivity() {
      * The word and ink color will always be different to create the Stroop effect.
      */
     private fun generateChallenge() {
-        Log.d(TAG, "Generating new challenge")
+        Log.d(TAG, "Generating new challenge - BEGIN")
 
-        // Validate that colorMap is initialized
-        if (!::colorMap.isInitialized || colorMap.isEmpty()) {
-            Log.e(TAG, "Color map not initialized or empty!")
-            Toast.makeText(this, "Error initializing challenge", Toast.LENGTH_SHORT).show()
-            return
+        try {
+            // Validate that colorMap is initialized
+            if (!::colorMap.isInitialized) {
+                Log.e(TAG, "Color map not initialized! Initializing now...")
+                colorMap = mapOf(
+                    "Red" to Color.rgb(255, 0, 0),
+                    "Green" to Color.rgb(0, 255, 0),
+                    "Blue" to Color.rgb(0, 0, 255),
+                    "Yellow" to Color.rgb(255, 255, 0),
+                    "Purple" to Color.rgb(128, 0, 128),
+                    "Orange" to Color.rgb(255, 165, 0),
+                    "Pink" to Color.rgb(255, 192, 203),
+                    "Brown" to Color.rgb(165, 42, 42),
+                    "Cyan" to Color.rgb(0, 255, 255)
+                )
+            }
+
+            if (colorMap.isEmpty()) {
+                Log.e(TAG, "Color map is empty after initialization!")
+                Toast.makeText(this, "Error: Could not initialize challenge colors", Toast.LENGTH_SHORT).show()
+                return
+            }
+
+            Log.d(TAG, "Color map has ${colorMap.size} colors: ${colorMap.keys.joinToString()}")
+
+            // Clear existing buttons
+            answerGrid.removeAllViews()
+
+            // Get available colors
+            val colorNames = colorMap.keys.toList()
+
+            // Ensure we have enough colors
+            if (colorNames.size < 2) {
+                Log.e(TAG, "Not enough colors for Stroop challenge, only have: ${colorNames.size}")
+                Toast.makeText(this, "Error: Not enough colors available", Toast.LENGTH_SHORT).show()
+                return
+            }
+
+            // Choose a random word (color name)
+            val wordColorName = colorNames.random()
+
+            // Choose a different color for the ink
+            var inkColorName: String
+            do {
+                inkColorName = colorNames.random()
+            } while (inkColorName == wordColorName)
+
+            // Set the correct answer to the ink color
+            correctColor = inkColorName
+
+            // Set the challenge text with proper colors
+            challengeText.text = wordColorName
+            val inkColor = colorMap[inkColorName]
+            if (inkColor != null) {
+                challengeText.setTextColor(inkColor)
+                Log.d(TAG, "Set challenge text to '$wordColorName' with ink color '$inkColorName' (${inkColor.toString()})")
+            } else {
+                Log.e(TAG, "Failed to get color value for '$inkColorName'")
+                challengeText.setTextColor(Color.RED) // Fallback
+            }
+
+            // Create the buttons for color selection
+            createColorButtons(colorNames)
+
+            Log.d(TAG, "Challenge generation complete")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error generating challenge", e)
+            Toast.makeText(this, "Error: Could not initialize challenge: ${e.message}", Toast.LENGTH_SHORT).show()
         }
-
-        // Clear existing buttons
-        answerGrid.removeAllViews()
-
-        // Get available colors
-        val colorNames = colorMap.keys.toList()
-        Log.d(TAG, "Available colors for challenge: ${colorNames.joinToString()}")
-
-        // Ensure we have enough colors
-        if (colorNames.size < 2) {
-            Log.e(TAG, "Not enough colors for Stroop challenge")
-            Toast.makeText(this, "Not enough colors available", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        // Choose a random word (color name)
-        val wordColorName = colorNames.random()
-
-        // Choose a different color for the ink
-        var inkColorName: String
-        do {
-            inkColorName = colorNames.random()
-        } while (inkColorName == wordColorName)
-
-        // Set the correct answer to the ink color
-        correctColor = inkColorName
-
-        // Set the challenge text with proper colors
-        challengeText.text = wordColorName
-        challengeText.setTextColor(colorMap[inkColorName] ?: Color.BLACK)
-
-        // Log the challenge details for debugging
-        Log.d(TAG, "Challenge - Word: $wordColorName, Ink: $inkColorName (correct answer)")
-
-        // Create the buttons for color selection
-        createColorButtons(colorNames)
     }
 
     /**
@@ -353,63 +380,70 @@ class StroopLockActivity : AppCompatActivity() {
      * Each button shows a color name in a different color to maintain the Stroop effect.
      */
     private fun createColorButtons(colorNames: List<String>) {
-        // Log the start of the method for debugging
-        Log.d(TAG, "Creating color buttons with ${colorNames.size} available colors")
+        try {
+            Log.d(TAG, "Creating color buttons with ${colorNames.size} available colors")
 
-        // Clear existing buttons
-        answerGrid.removeAllViews()
+            // Clear existing buttons
+            answerGrid.removeAllViews()
 
-        // Create a shuffled list of colors for buttons
-        val shuffledColors = colorNames.shuffled()
+            // Explicitly set column and row count
+            answerGrid.columnCount = 3
+            answerGrid.rowCount = 3
 
-        // Make sure we don't use more colors than we have available
-        val numButtons = Math.min(9, shuffledColors.size)
+            // Create a shuffled list of colors for buttons
+            val shuffledColors = colorNames.shuffled()
 
-        // Double-check we have at least 2 colors to work with
-        if (numButtons < 2) {
-            Log.e(TAG, "Not enough colors available for Stroop challenge, found: $numButtons")
-            Toast.makeText(this, "Not enough colors available", Toast.LENGTH_SHORT).show()
-            return
+            // Make sure we don't use more colors than we have available
+            val numButtons = Math.min(9, shuffledColors.size)
+
+            Log.d(TAG, "Will create $numButtons buttons")
+
+            // For each color, create a button
+            for (i in 0 until numButtons) {
+                val colorName = shuffledColors[i]
+                val button = Button(this)
+                button.text = colorName
+
+                // Make buttons more visible
+                button.textSize = 18f
+                button.setPadding(8, 16, 8, 16)
+
+                // Set a different text color than the button text (maintaining Stroop effect)
+                val textColorIndex = (i + 1) % numButtons
+                val textColorName = shuffledColors[textColorIndex]
+
+                // Get the color resource
+                val textColor = colorMap[textColorName]
+                if (textColor != null) {
+                    button.setTextColor(textColor)
+                } else {
+                    Log.w(TAG, "Could not find color value for '$textColorName', using BLACK")
+                    button.setTextColor(Color.BLACK)
+                }
+
+                // Fixed layout parameters for consistent button sizes
+                val params = GridLayout.LayoutParams()
+                params.width = GridLayout.LayoutParams.WRAP_CONTENT
+                params.height = GridLayout.LayoutParams.WRAP_CONTENT
+                params.setMargins(8, 8, 8, 8)
+                params.columnSpec = GridLayout.spec(i % 3, 1f)
+                params.rowSpec = GridLayout.spec(i / 3, 1f)
+                button.layoutParams = params
+
+                // Set click listener
+                button.setOnClickListener {
+                    Log.d(TAG, "Color button clicked: $colorName")
+                    onColorSelected(colorName)
+                }
+
+                // Add to grid
+                answerGrid.addView(button)
+                Log.d(TAG, "Added button for color: $colorName")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error creating color buttons", e)
+            Toast.makeText(this, "Error creating color buttons: ${e.message}", Toast.LENGTH_SHORT).show()
         }
-
-        Log.d(TAG, "Creating $numButtons buttons with shuffled colors")
-
-        // For each color, create a button
-        for (i in 0 until numButtons) {
-            val colorName = shuffledColors[i]
-            val button = Button(this)
-            button.text = colorName
-
-            // Set a different text color than the button text (maintaining Stroop effect)
-            // We mod by numButtons to ensure we stay within bounds
-            val textColorIndex = (i + 1) % numButtons
-            val textColorName = shuffledColors[textColorIndex]
-
-            // Add context to our logs
-            Log.d(TAG, "Button $i: text='$colorName', textColorIndex=$textColorIndex, textColor='$textColorName'")
-
-            // Set text color
-            button.setTextColor(colorMap[textColorName] ?: Color.BLACK)
-
-            // Add shadow to create text stroke/outline effect
-            button.setShadowLayer(1.0f, 1.0f, 1.0f, Color.BLACK)
-
-            // Make buttons evenly distributed
-            val params = GridLayout.LayoutParams()
-            params.width = 0
-            params.height = GridLayout.LayoutParams.WRAP_CONTENT
-            params.columnSpec = GridLayout.spec(i % 3, 1f)
-            params.rowSpec = GridLayout.spec(i / 3, 1f)
-            button.layoutParams = params
-
-            // Set click listener
-            button.setOnClickListener { onColorSelected(colorName) }
-
-            // Add to grid
-            answerGrid.addView(button)
-        }
-
-        Log.d(TAG, "Successfully created and added $numButtons color buttons")
     }
 
     private fun onColorSelected(selectedColor: String) {

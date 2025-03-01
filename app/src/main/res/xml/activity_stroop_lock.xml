@@ -76,6 +76,22 @@
             android:layout_weight="1"
             android:text="@string/enable_accessibility" />
 
+        <GridLayout
+            android:id="@+id/answerGrid"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginTop="24dp"
+            android:layout_marginEnd="16dp"
+            android:layout_marginBottom="24dp"
+            android:columnCount="3"
+            android:alignmentMode="alignBounds"
+            android:useDefaultMargins="true"
+            app:layout_constraintBottom_toTopOf="@+id/menuButtonsLayout"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/challengeText" />
+
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

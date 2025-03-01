@@ -54,38 +54,54 @@ class StroopAccessibilityService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
 
-        val currentTime = SystemClock.elapsedRealtime()
+        val eventType = event.eventType
         val packageName = event.packageName?.toString() ?: return
+        val className = event.className?.toString() ?: ""
 
-        // Ignore our own app
-        if (packageName == "com.example.strooplocker") return
+        Log.d(TAG, "Accessibility event: type=$eventType, package=$packageName, class=$className")
+
+        // Skip events from our own app
+        if (packageName == "com.example.strooplocker") {
+            Log.d(TAG, "Skipping our own app events")
+            return
+        }
 
         // Check if the package is in the locked apps list
         CoroutineScope(Dispatchers.IO).launch {
-            val repository = LockedAppsRepository(
-                LockedAppDatabase.getInstance(this@StroopAccessibilityService).lockedAppDao()
-            )
+            try {
+                val repository = LockedAppsRepository(
+                    LockedAppDatabase.getInstance(this@StroopAccessibilityService).lockedAppDao()
+                )
 
-            val lockedApps = repository.getAllLockedApps()
-            val isLocked = lockedApps.contains(packageName)
+                val lockedApps = repository.getAllLockedApps()
+                val isLocked = lockedApps.contains(packageName)
+                val isCompleted = completedChallenges.contains(packageName)
 
-            Log.d(TAG, "Package: $packageName, Locked: $isLocked, Completed: ${completedChallenges.contains(packageName)}")
+                Log.d(TAG, "Package: $packageName, Locked: $isLocked, Challenge completed: $isCompleted")
 
-            // Launch challenge if app is locked and not recently completed
-            if (isLocked && !completedChallenges.contains(packageName)) {
-                withContext(Dispatchers.Main) {
-                    val lockIntent = Intent(this@StroopAccessibilityService, StroopLockActivity::class.java).apply {
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                        addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                        putExtra(EXTRA_LOCKED_PACKAGE, packageName)
+                // Only launch challenge if app is locked and not recently completed
+                if (isLocked && !isCompleted && !challengeInProgress) {
+                    // Set challenge in progress to prevent multiple launches
+                    challengeInProgress = true
+                    pendingLockedPackage = packageName
+
+                    withContext(Dispatchers.Main) {
+                        Log.d(TAG, "Launching challenge for locked app: $packageName")
+                        val lockIntent = Intent(this@StroopAccessibilityService, StroopLockActivity::class.java).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                            putExtra(EXTRA_LOCKED_PACKAGE, packageName)
+                        }
+                        startActivity(lockIntent)
                     }
-                    startActivity(lockIntent)
                 }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error in accessibility event handling", e)
+                challengeInProgress = false
             }
         }
     }
-
+    
     // Remove the direct method call
     fun markChallengeCompleted(packageName: String) {
         completedChallenges.add(packageName)
