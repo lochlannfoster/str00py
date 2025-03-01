@@ -3,7 +3,7 @@ package com.example.strooplocker
 import android.content.Context
 import android.util.Log
 import com.example.strooplocker.data.LockedAppDatabase
-import com.example.strooplocker.data.LockedAppsRepository
+import com.example.strooplocker.data.LockedAppRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -69,9 +69,9 @@ object LockManager {
     /**
      * Helper to get repository instance
      */
-    private fun getRepository(context: Context): LockedAppsRepository {
+    private fun getRepository(context: Context): LockedAppRepository {
         val db = LockedAppDatabase.getInstance(context)
         val dao = db.lockedAppDao()
-        return LockedAppsRepository(dao)
+        return LockedAppRepository(dao)
     }
 }

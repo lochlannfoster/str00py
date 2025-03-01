@@ -3,10 +3,8 @@
 package com.example.strooplocker
 
 import android.app.Application
-import android.graphics.Color
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.Observer
 import com.example.strooplocker.data.LockedAppDao
 import com.example.strooplocker.data.LockedAppDatabase
 import com.example.strooplocker.data.LockedAppsRepository
@@ -22,7 +20,9 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.Mock
-import org.mockito.Mockito.*
+import org.mockito.Mockito
+import org.mockito.Mockito.times
+import org.mockito.Mockito.verify
 import org.mockito.junit.MockitoJUnitRunner
 import org.junit.Assert.*
 
@@ -53,26 +53,14 @@ class StroopLockViewModelTest {
     @Mock
     private lateinit var mockRepository: LockedAppsRepository
 
-    @Mock
-    private lateinit var challengeWordObserver: Observer<String>
-
-    @Mock
-    private lateinit var inkColorObserver: Observer<String>
-
-    @Mock
-    private lateinit var expectedAnswerObserver: Observer<String>
-
-    @Mock
-    private lateinit var buttonLabelsObserver: Observer<List<String>>
-
     private lateinit var viewModel: StroopLockViewModel
 
     @Before
     fun setup() {
         Dispatchers.setMain(testDispatcher)
 
-        `when`(mockDb.lockedAppDao()).thenReturn(mockDao)
-        `when`(mockApplication.applicationContext).thenReturn(mockApplication)
+        Mockito.`when`(mockDb.lockedAppDao()).thenReturn(mockDao)
+        Mockito.`when`(mockApplication.applicationContext).thenReturn(mockApplication)
 
         viewModel = StroopLockViewModel(mockApplication)
 
@@ -80,55 +68,16 @@ class StroopLockViewModelTest {
         val field = StroopLockViewModel::class.java.getDeclaredField("repository")
         field.isAccessible = true
         field.set(viewModel, mockRepository)
-
-        // Observe LiveData
-        viewModel.challengeWord.observeForever(challengeWordObserver)
-        viewModel.inkColor.observeForever(inkColorObserver)
-        viewModel.expectedAnswer.observeForever(expectedAnswerObserver)
-        viewModel.buttonLabels.observeForever(buttonLabelsObserver)
     }
 
     @After
     fun tearDown() {
-        // Remove observers
-        viewModel.challengeWord.removeObserver(challengeWordObserver)
-        viewModel.inkColor.removeObserver(inkColorObserver)
-        viewModel.expectedAnswer.removeObserver(expectedAnswerObserver)
-        viewModel.buttonLabels.removeObserver(buttonLabelsObserver)
-
         Dispatchers.resetMain()
     }
 
     @Test
-    fun generateChallenge_setsAllChallengeProperties() {
-        // Arrange
-        val colorMap = mapOf(
-            "Red" to Color.RED,
-            "Blue" to Color.BLUE,
-            "Green" to Color.GREEN
-        )
-
-        // Use reflection to set the MutableLiveData value
-        val colorMapField = StroopLockViewModel::class.java.getDeclaredField("_colorMap")
-        colorMapField.isAccessible = true
-        val colorMapLiveData = colorMapField.get(viewModel) as MutableLiveData<Map<String, Int>>
-        colorMapLiveData.value = colorMap
-
-        // Act
-        viewModel.generateChallenge()
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        // Assert - verify that the observers were notified
-        verify(challengeWordObserver, atLeastOnce()).onChanged(any())
-        verify(inkColorObserver, atLeastOnce()).onChanged(any())
-        verify(expectedAnswerObserver, atLeastOnce()).onChanged(any())
-        verify(buttonLabelsObserver, atLeastOnce()).onChanged(any())
-    }
-
-    @Test
     fun checkAnswer_correctAnswer_returnsTrue() {
-        // Instead of subclassing, we'll use the actual viewModel and modify its fields directly
-
+        // Arrange
         val expectedAnswer = "Blue"
 
         // Use reflection to set the expected answer
@@ -145,10 +94,11 @@ class StroopLockViewModelTest {
 
     @Test
     fun checkAnswer_incorrectAnswer_returnsFalse() {
-        // Use reflection to set the expected answer
+        // Arrange
         val correctAnswer = "Blue"
         val wrongAnswer = "Red"
 
+        // Use reflection to set the expected answer
         val field = StroopLockViewModel::class.java.getDeclaredField("_expectedAnswer")
         field.isAccessible = true
         (field.get(viewModel) as MutableLiveData<String>).value = correctAnswer
@@ -162,18 +112,15 @@ class StroopLockViewModelTest {
 
     @Test
     fun loadLockedApps_callsRepository() = runTest {
-        // Since loadLockedApps is called in init, reset the mock first
-        reset(mockRepository)
-
         // Arrange
-        `when`(mockRepository.getAllLockedApps()).thenReturn(listOf("app1", "app2"))
+        Mockito.`when`(mockRepository.getAllLockedApps()).thenReturn(listOf("app1", "app2"))
 
         // Act
         viewModel.loadLockedApps()
         testDispatcher.scheduler.advanceUntilIdle()
 
-        // Assert
-        verify(mockRepository, times(1)).getAllLockedApps()
+        // Assert - verify repository was called
+        Mockito.verify(mockRepository, times(1)).getAllLockedApps()
     }
 
     @Test
@@ -184,9 +131,42 @@ class StroopLockViewModelTest {
         val veryLongWord = "UltraViolet"
 
         // Act & Assert
-        assertEquals(26f, viewModel.calculateFontSizeForWord(shortWord))
+        assertEquals(26f, viewModel.calculateFontSizeForWord(shortWord), 0.001f)
         assertTrue(viewModel.calculateFontSizeForWord(longWord) < 26f)
         assertTrue(viewModel.calculateFontSizeForWord(veryLongWord) < viewModel.calculateFontSizeForWord(longWord))
         assertTrue(viewModel.calculateFontSizeForWord(veryLongWord) >= 16f) // Min size
+    }
+
+    @Test
+    fun generateChallenge_setsValidChallengeProperties() {
+        // Arrange: setup a predefined color map matching ViewModel
+        val colorMap = mapOf(
+            "Red" to "#FF0000",
+            "Green" to "#00FF00",
+            "Blue" to "#3366FF",
+            "Yellow" to "#CCFF33",
+            "Pink" to "#FF66FF",
+            "Orange" to "#FF6600",
+            "Brown" to "#FF8000",
+            "Cyan" to "#00FFFF",
+            "Purple" to "#8A00E6"
+        )
+
+        // Use reflection to set the color map
+        val colorMapField = StroopLockViewModel::class.java.getDeclaredField("_colorMap")
+        colorMapField.isAccessible = true
+        val colorMapLiveData = colorMapField.get(viewModel) as MutableLiveData<Map<String, String>>
+        colorMapLiveData.value = colorMap
+
+        // Act
+        viewModel.generateChallenge()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Assert - verify challenge properties are set
+        assertNotNull(viewModel.challengeWord.value)
+        assertNotNull(viewModel.inkColor.value)
+        assertNotNull(viewModel.expectedAnswer.value)
+        assertNotNull(viewModel.buttonLabels.value)
+        assertEquals(9, viewModel.buttonLabels.value?.size)
     }
 }

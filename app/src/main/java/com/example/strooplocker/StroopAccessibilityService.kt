@@ -11,7 +11,7 @@ import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.widget.Toast
 import com.example.strooplocker.data.LockedAppDatabase
-import com.example.strooplocker.data.LockedAppsRepository
+import com.example.strooplocker.data.LockedAppRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -151,7 +151,7 @@ class StroopAccessibilityService : AccessibilityService() {
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val repository = LockedAppsRepository(
+                val repository = LockedAppRepository(
                     LockedAppDatabase.getInstance(this@StroopAccessibilityService).lockedAppDao()
                 )
 

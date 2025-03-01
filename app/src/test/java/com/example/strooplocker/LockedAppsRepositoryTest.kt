@@ -12,6 +12,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.Mock
 import org.mockito.Mockito
+import org.mockito.Mockito.times
+import org.mockito.Mockito.verify
 import org.mockito.junit.MockitoJUnitRunner
 
 /**
@@ -38,7 +40,10 @@ class LockedAppsRepositoryTest {
     @Test
     fun getAllLockedApps_returnsAllApps() = runTest {
         // Arrange
-        val expectedAppList = listOf(LockedApp("com.example.app1"), LockedApp("com.example.app2"))
+        val expectedAppList = listOf(
+            LockedApp("com.example.app1"),
+            LockedApp("com.example.app2")
+        )
         val expectedStringList = expectedAppList.map { it.packageName }
 
         Mockito.`when`(mockDao.getAllLockedApps()).thenReturn(expectedAppList)
@@ -48,34 +53,32 @@ class LockedAppsRepositoryTest {
 
         // Assert
         assert(result == expectedStringList)
-        Mockito.verify(mockDao).getAllLockedApps()
+        verify(mockDao, times(1)).getAllLockedApps()
     }
 
     @Test
     fun addLockedApp_insertsAppToDao() = runTest {
         // Arrange
         val packageName = "com.example.app1"
+        val lockedApp = LockedApp(packageName)
 
         // Act
         repository.addLockedApp(packageName)
 
         // Assert
-        // We can't use argumentCaptor with JVM 1.8, so using a simpler approach
-        // We'll verify that insertLockedApp was called once, and we'll describe
-        // the expected behavior without actually verifying the exact argument
-        Mockito.verify(mockDao).insertLockedApp(Mockito.any(LockedApp::class.java))
+        verify(mockDao, times(1)).insertLockedApp(lockedApp)
     }
 
     @Test
     fun removeLockedApp_deletesAppFromDao() = runTest {
         // Arrange
         val packageName = "com.example.app1"
+        val lockedApp = LockedApp(packageName)
 
         // Act
         repository.removeLockedApp(packageName)
 
         // Assert
-        // Same approach as above - verify the call without exact argument matching
-        Mockito.verify(mockDao).deleteLockedApp(Mockito.any(LockedApp::class.java))
+        verify(mockDao, times(1)).deleteLockedApp(lockedApp)
     }
 }
