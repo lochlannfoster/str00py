@@ -10,8 +10,19 @@ import androidx.lifecycle.viewModelScope
 import com.example.strooplocker.data.LockedAppDatabase
 import com.example.strooplocker.data.LockedAppsRepository
 import kotlinx.coroutines.launch
+import com.example.strooplocker.utils.LoggingUtil
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
+
 
 class StroopLockViewModel(application: Application) : AndroidViewModel(application) {
+
+    companion object {
+        private const val TAG = "StroopLockViewModel_DEBUG"
+    }
 
     private val repository = LockedAppsRepository(
         LockedAppDatabase.getInstance(application).lockedAppDao()
@@ -60,27 +71,39 @@ class StroopLockViewModel(application: Application) : AndroidViewModel(applicati
             "Purple" to "#8A00E6"
         )
 
-        loadLockedApps()
     }
 
     /**
      * Load locked apps from database
      */
-    fun loadLockedApps() {
-        viewModelScope.launch {
-            val apps = repository.getAllLockedApps()
-            _lockedApps.postValue(apps)
-        }
-    }
+    class StroopLockViewModel(application: Application) : AndroidViewModel(application) {
+        private var _lockedAppsLoaded = false
 
-    /**
-     * Add an app to locked list
-     */
-    fun addLockedApp(packageName: String) {
-        viewModelScope.launch {
-            repository.addLockedApp(packageName)
-            _appToLaunch.value = packageName
-            loadLockedApps()
+        class StroopLockViewModel(
+            private val repository: StroopLockRepository
+        ) : ViewModel() {
+            // Private mutable state flow for locked apps
+            private val _lockedApps = MutableStateFlow<List<String>>(emptyList())
+
+            // Public immutable state flow exposed to the UI
+            val lockedApps: StateFlow<List<String>> = _lockedApps
+
+            // Example method to add a locked app
+            fun addLockedApp(packageName: String) {
+                viewModelScope.launch {
+                    // Perform operation to add locked app
+                    // This is a placeholder - replace with actual repository method
+                    _lockedApps.value = _lockedApps.value + packageName
+                }
+            }
+
+            // Example method to remove a locked app
+            fun removeLockFromApp(packageName: String) {
+                viewModelScope.launch {
+                    // Perform operation to remove locked app
+                    _lockedApps.value = _lockedApps.value.filter { it != packageName }
+                }
+            }
         }
     }
 

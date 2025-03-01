@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.example.strooplocker.data.LockedAppDatabase
 import com.example.strooplocker.data.LockedAppsRepository
+import com.example.strooplocker.utils.LoggingUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -14,16 +15,22 @@ object LockManager {
      * Adds an app to the locked apps list
      */
     suspend fun addLockedApp(context: Context, packageName: String) {
-        Log.d(TAG, "Attempting to add locked app: $packageName")
-        try {
-            val repository = getRepository(context)
-            repository.addLockedApp(packageName)
+        withContext(Dispatchers.IO) {
+            try {
+                LoggingUtil.debug(TAG, "addLockedApp", "Attempting to add locked app: $packageName")
 
-            // Verify addition
-            val lockedApps = repository.getAllLockedApps()
-            Log.d(TAG, "Locked apps after adding $packageName: $lockedApps")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error adding locked app: $packageName", e)
+                val repository = getRepository(context)
+                repository.addLockedApp(packageName)
+
+                val lockedApps = repository.getAllLockedApps()
+                LoggingUtil.debug(
+                    TAG,
+                    "addLockedApp",
+                    "Locked apps after adding $packageName: $lockedApps"
+                )
+            } catch (e: Exception) {
+                LoggingUtil.error(TAG, "addLockedApp", "Error adding locked app: $packageName", e)
+            }
         }
     }
 

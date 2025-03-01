@@ -3,30 +3,32 @@ package com.example.strooplocker.data
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.example.strooplocker.utils.LoggingUtil
 
 class LockedAppsRepository(private val dao: LockedAppDao) {
     companion object {
         private const val TAG = "LockedAppsRepository_DEBUG"
     }
 
-    /**
-     * Retrieve all locked app package names
-     */
     suspend fun getAllLockedApps(): List<String> = withContext(Dispatchers.IO) {
         val lockedApps = dao.getAllLockedApps().map { it.packageName }
-        Log.d(TAG, "Retrieved all locked apps: $lockedApps")
+        LoggingUtil.debug(TAG, "getAllLockedApps", "Retrieved ${lockedApps.size} locked apps")
         lockedApps
     }
 
-    /**
-     * Add a package name to locked apps
-     */
     suspend fun addLockedApp(packageName: String) {
-        val lockedApp = LockedApp(packageName)
         withContext(Dispatchers.IO) {
-            Log.d(TAG, "Adding locked app: $packageName")
-            dao.insertLockedApp(lockedApp)
-            Log.d(TAG, "Successfully added locked app: $packageName")
+            try {
+                LoggingUtil.debug(TAG, "addLockedApp", "Adding locked app: $packageName")
+                dao.insertLockedApp(LockedApp(packageName))
+                LoggingUtil.debug(
+                    TAG,
+                    "addLockedApp",
+                    "Successfully added locked app: $packageName"
+                )
+            } catch (e: Exception) {
+                LoggingUtil.error(TAG, "addLockedApp", "Error adding locked app: $packageName", e)
+            }
         }
     }
 

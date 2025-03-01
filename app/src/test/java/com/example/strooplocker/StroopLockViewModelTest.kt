@@ -1,5 +1,3 @@
-// app/src/test/java/com/example/strooplocker/StroopLockViewModelTest.kt
-
 package com.example.strooplocker
 
 import android.app.Application
@@ -26,12 +24,6 @@ import org.mockito.Mockito.verify
 import org.mockito.junit.MockitoJUnitRunner
 import org.junit.Assert.*
 
-/**
- * Unit tests for [StroopLockViewModel]
- *
- * These tests verify the view model correctly manages challenge generation,
- * answer checking, and app locking functionality.
- */
 @ExperimentalCoroutinesApi
 @RunWith(MockitoJUnitRunner::class)
 class StroopLockViewModelTest {
@@ -56,13 +48,13 @@ class StroopLockViewModelTest {
     private lateinit var viewModel: StroopLockViewModel
 
     @Before
-    fun setup() {
+    fun setup() = runTest {
         Dispatchers.setMain(testDispatcher)
 
         Mockito.`when`(mockDb.lockedAppDao()).thenReturn(mockDao)
         Mockito.`when`(mockApplication.applicationContext).thenReturn(mockApplication)
 
-        // Stub the repository's getAllLockedApps method in initialization
+        // Use runBlocking or runTest to call suspend function
         Mockito.`when`(mockRepository.getAllLockedApps()).thenReturn(listOf())
 
         viewModel = StroopLockViewModel(mockApplication)
@@ -76,6 +68,24 @@ class StroopLockViewModelTest {
     @After
     fun tearDown() {
         Dispatchers.resetMain()
+    }
+
+    @Test
+    fun `load locked apps calls repository`() = runTest {
+        // Arrange
+        val expectedApps = listOf("app1", "app2")
+        Mockito.`when`(mockRepository.getAllLockedApps()).thenReturn(expectedApps)
+
+        // Act
+        viewModel.loadLockedApps()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Assert
+        verify(mockRepository, times(1)).getAllLockedApps()
+
+        // Additional assertions to check LiveData
+        val loadedApps = viewModel.lockedApps.value
+        assertEquals(expectedApps, loadedApps)
     }
 
     @Test
