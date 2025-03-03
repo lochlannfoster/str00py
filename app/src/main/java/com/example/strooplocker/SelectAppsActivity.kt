@@ -20,6 +20,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.core.content.ContextCompat
 import android.graphics.Color
+import android.os.Handler
+import android.os.Looper
 
 
 /**
@@ -119,6 +121,22 @@ class SelectAppsActivity : AppCompatActivity() {
 
                 Log.d(TAG, "Currently locked apps: $lockedApps")
 
+                // Add a delay to ensure UI is fully ready before setting adapter
+                Handler(Looper.getMainLooper()).post {
+                    if (apps.isEmpty()) {
+                        Toast.makeText(this@SelectAppsActivity,
+                            getString(R.string.toast_no_apps),
+                            Toast.LENGTH_LONG).show()
+                        Log.w(TAG, "No apps available to lock - adapter not created")
+                    } else {
+                        appsAdapter = AppsAdapter(apps, lockedApps.toSet()) { app, isLocked ->
+                            onAppSelected(app, isLocked)
+                        }
+                        recyclerView.adapter = appsAdapter
+                        Log.d(TAG, "Adapter set with ${apps.size} apps")
+                    }
+                }
+
                 // Display results or message if no apps found
                 if (apps.isEmpty()) {
                     Toast.makeText(this@SelectAppsActivity,
@@ -140,6 +158,7 @@ class SelectAppsActivity : AppCompatActivity() {
             }
         }
     }
+
 
     /**
      * Handles app selection events.

@@ -1,19 +1,14 @@
-// app/src/androidTest/java/com/example/strooplocker/StroopChallengeActivityTest.kt
-
 package com.example.strooplocker
 
 import android.content.Context
 import android.content.Intent
-import android.content.SharedPreferences
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.espresso.Espresso.onView
-import androidx.test.espresso.action.ViewActions.click
 import androidx.test.espresso.assertion.ViewAssertions.matches
 import androidx.test.espresso.matcher.ViewMatchers.*
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.LargeTest
-import org.hamcrest.Matchers.not
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -36,6 +31,9 @@ class StroopLockActivityTest {
         // Set first launch flag to false to skip welcome dialogs
         val prefs = context.getSharedPreferences("stroop_prefs", Context.MODE_PRIVATE)
         prefs.edit().putBoolean("is_first_launch", false).apply()
+
+        // Reset any session state to ensure tests start from a clean state
+        SessionManager.endAllSessions()
     }
 
     @Test
