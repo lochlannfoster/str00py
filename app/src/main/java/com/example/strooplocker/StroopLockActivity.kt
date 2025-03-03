@@ -560,11 +560,8 @@ class StroopLockActivity : AppCompatActivity() {
 
             // Mark challenge as completed
             packageToLaunch?.let { pkg ->
-                Log.d(TAG, "Adding $pkg to completed challenges")
-
-                // Use SessionManager to track completion
+                Log.d(TAG, "Completing challenge for: $pkg")
                 SessionManager.completeChallenge(pkg)
-                completedChallenges.add(pkg)
 
                 // Add a short delay before launching app to allow UI feedback
                 challengeText.postDelayed({
@@ -584,7 +581,7 @@ class StroopLockActivity : AppCompatActivity() {
             generateChallenge()
         }
     }
-
+    
     /**
      * Checks if a challenge for the given package has been completed recently.
      *
