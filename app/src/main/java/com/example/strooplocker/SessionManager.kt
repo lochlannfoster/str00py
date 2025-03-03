@@ -92,6 +92,12 @@ object SessionManager {
         challengeInProgress = false
         currentChallengePackage = null
         timeoutHandler.removeCallbacksAndMessages(null)
+
+        // Add a longer expiration for completed challenges (e.g., 2 minutes)
+        timeoutHandler.postDelayed({
+            Log.d(TAG, "Challenge session expired for $packageName")
+            completedChallenges.remove(packageName)
+        }, 120000L) // 2 minutes
     }
 
     /**

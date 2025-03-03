@@ -18,6 +18,9 @@ import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.core.content.ContextCompat
+import android.graphics.Color
+
 
 /**
  * SelectAppsActivity displays a list of installed apps and allows the user
@@ -226,6 +229,9 @@ class SelectAppsActivity : AppCompatActivity() {
             holder.appName.text = app.loadLabel(packageManager)
             holder.appIcon.setImageDrawable(app.loadIcon(packageManager))
             holder.lockStatus.text = if (isLocked) "Locked" else "Unlocked"
+
+            // Set text color based on lock status
+            holder.lockStatus.setTextColor(if (isLocked) Color.GREEN else Color.RED)
 
             holder.itemView.setOnClickListener {
                 onAppClick(app, isLocked)

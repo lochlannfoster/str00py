@@ -205,7 +205,15 @@ class StroopLockActivity : AppCompatActivity() {
     private fun checkAndRequestPermissions() {
         Log.d(TAG, "Checking app permissions and setup status")
 
-        // Check if this is the first launch
+        // Skip permission checks in test mode
+        if (intent.getBooleanExtra("test_mode", false)) {
+            Log.d(TAG, "Test mode detected, skipping permission checks")
+            updatePermissionStatus()
+            generateChallenge() // Generate a sample challenge for testing
+            return
+        }
+
+        // Rest of the method remains the same
         val prefs = getSharedPreferences("stroop_prefs", Context.MODE_PRIVATE)
         val isFirstLaunch = prefs.getBoolean("is_first_launch", true)
 

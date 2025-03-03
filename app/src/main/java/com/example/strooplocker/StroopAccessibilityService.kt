@@ -158,6 +158,7 @@ class StroopAccessibilityService : AccessibilityService() {
      */
     private fun performCheckAndLockApp(packageName: String) {
         LoggingUtil.debug(TAG, "performCheckAndLockApp", "CHECKING: Is $packageName locked?")
+
         // Skip if a challenge is already in progress
         if (SessionManager.isChallengeInProgress()) {
             LoggingUtil.debug(TAG, "performCheckAndLockApp", "SKIPPING: Challenge already in progress")
@@ -167,6 +168,12 @@ class StroopAccessibilityService : AccessibilityService() {
         // Skip if this app has already completed a challenge
         if (SessionManager.isChallengeCompleted(packageName)) {
             LoggingUtil.debug(TAG, "performCheckAndLockApp", "SKIPPING: Challenge already completed for $packageName")
+            return
+        }
+
+        // Skip our own app
+        if (packageName == "com.example.strooplocker") {
+            LoggingUtil.debug(TAG, "performCheckAndLockApp", "SKIPPING: This is our own app")
             return
         }
 

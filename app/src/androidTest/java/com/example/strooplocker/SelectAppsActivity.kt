@@ -15,6 +15,7 @@ import org.junit.Rule
 import androidx.test.rule.ActivityTestRule
 import org.junit.Before
 
+
 /**
  * UI tests for [SelectAppsActivity]
  *
