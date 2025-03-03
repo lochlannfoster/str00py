@@ -145,17 +145,13 @@ object SessionManager {
      * @return true if the challenge has been completed for this package and is still valid
      */
 
+// app/src/main/java/com/example/strooplocker/SessionManager.kt
+
     fun isChallengeCompleted(packageName: String): Boolean {
         // Debug logging
         Log.d(TAG, "Checking if challenge for $packageName is completed")
         Log.d(TAG, "Current completed challenges: ${completedChallenges.keys.joinToString()}")
 
-        // For debugging, always return false to force challenges
-        Log.d(TAG, "FORCING LOCK: Returning false for all completion checks")
-        return false
-
-        // Original code commented out for testing
-        /*
         // Check if we should force a periodic clearing of challenges
         checkForPeriodicClearing()
 
@@ -174,8 +170,9 @@ object SessionManager {
         }
 
         return true
-        */
-    }/**
+    }
+
+    /**
      * Periodically clears all challenges to ensure the app doesn't stay
      * unlocked for too long, even if the user keeps interacting with it.
      */
