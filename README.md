@@ -12,8 +12,10 @@ The app presents the user with a color word, like "Blue", but displays it in a d
 
 ![github-header-image(4)](https://github.com/user-attachments/assets/8538964d-9252-46f1-9551-b4a6dd7934e8)
 
-**TO BE UPDATED**
-
+- Currently experiencing erratic behaviour (e.g. lock appears to engage 'randomly')
+- As above, "session logic" is likely poorly implemented and inconsistent. The first time you lock an app works, but shortly into the "session" the lock re-engages when it's "not supposed to."
+- "Answer buttons" are not rendering in a colour that is 'user-friendly' and easily visible. (e.g. "Pink" answer text is too hard to read against the gray background."
+ 
 ---
 
 ![github-header-image(2)](https://github.com/user-attachments/assets/f5039233-deea-41e7-ac6e-15d3605ba8c6)
