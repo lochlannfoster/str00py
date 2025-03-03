@@ -549,7 +549,14 @@ class StroopLockActivity : AppCompatActivity() {
      *
      * @param selectedColor The color name selected by the user
      */
-// Update the onColorSelected method:
+    /**
+     * Handles the selection of a color button.
+     * If the selected color matches the correct answer (the ink color),
+     * completes the challenge and launches the locked app.
+     * Otherwise, generates a new challenge.
+     *
+     * @param selectedColor The color name selected by the user
+     */
     private fun onColorSelected(selectedColor: String) {
         if (selectedColor == correctColor) {
             Log.d(TAG, "Correct answer selected: $selectedColor")
@@ -586,7 +593,7 @@ class StroopLockActivity : AppCompatActivity() {
      * @return true if the challenge has been completed, false otherwise
      */
     private fun checkChallengeCompletion(packageName: String): Boolean {
-        // Use SessionManager exclusively for challenge completion status
+        // Delegate to SessionManager for tracking completed challenges
         return SessionManager.isChallengeCompleted(packageName)
     }
 

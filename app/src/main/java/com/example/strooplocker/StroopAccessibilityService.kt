@@ -128,11 +128,14 @@ class StroopAccessibilityService : AccessibilityService() {
             else if (currentForegroundPackage != packageName) {
                 LoggingUtil.debug(TAG, "onAccessibilityEvent", "APP SWITCH: From ${currentForegroundPackage ?: "null"} to $packageName")
 
+                // Store the previous package
+                val previousPackage = currentForegroundPackage
+
                 // Update current package
                 currentForegroundPackage = packageName
 
-                // Always check if the new app should be locked, regardless of history
-                performCheckAndLockApp(packageName)
+                // Check if the new app should be locked, and handle the app switch
+                performCheckAndLockApp(packageName, previousPackage)
             }
         }
     }
@@ -142,8 +145,9 @@ class StroopAccessibilityService : AccessibilityService() {
      * This is the core logic that determines when to present a challenge.
      *
      * @param packageName The package name to check
+     * @param previousPackage The previous package name, if this is an app switch
      */
-    private fun performCheckAndLockApp(packageName: String) {
+    private fun performCheckAndLockApp(packageName: String, previousPackage: String? = null) {
         LoggingUtil.debug(TAG, "performCheckAndLockApp", "CHECKING: Is $packageName locked?")
 
         // Skip if a challenge is already in progress
@@ -173,6 +177,11 @@ class StroopAccessibilityService : AccessibilityService() {
                 val lockedApps = repository.getAllLockedApps()
                 LoggingUtil.debug(TAG, "performCheckAndLockApp", "LOCKED APPS: ${lockedApps.joinToString()}")
                 LoggingUtil.debug(TAG, "performCheckAndLockApp", "COMPLETED CHALLENGES: ${SessionManager.getCompletedChallenges().joinToString()}")
+
+                // Handle app switch with locked apps information if this is from an app switch
+                if (previousPackage != null) {
+                    SessionManager.handleAppSwitch(previousPackage, packageName, lockedApps)
+                }
 
                 val isLocked = lockedApps.contains(packageName)
 

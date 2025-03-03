@@ -1,3 +1,4 @@
+// app/src/main/java/com/example/strooplocker/SessionManager.kt
 package com.example.strooplocker
 
 import android.os.Handler
@@ -13,11 +14,8 @@ import android.util.Log
 object SessionManager {
     private const val TAG = "SessionManager"
 
-    // Add timeout value for sessions
-    private const val SESSION_TIMEOUT_MS = 5000L // 5 seconds timeout for sessions
-
-    // Track completed challenge packages with timestamps
-    private val completedChallenges = mutableMapOf<String, Long>()
+    // Track completed challenge packages
+    private val completedChallenges = mutableSetOf<String>()
 
     // Only track if a challenge is currently in progress to prevent overlapping challenges
     @Volatile
@@ -88,8 +86,8 @@ object SessionManager {
         challengeInProgress = false
         currentChallengePackage = null
 
-        // Add to completed challenges map with current timestamp
-        completedChallenges[packageName] = System.currentTimeMillis()
+        // Add to completed challenges set
+        completedChallenges.add(packageName)
 
         timeoutHandler.removeCallbacksAndMessages(null)
     }
@@ -114,22 +112,8 @@ object SessionManager {
      * @param packageName The package name to check
      * @return true if the challenge has been completed for this package
      */
-    @Synchronized
     fun isChallengeCompleted(packageName: String): Boolean {
-        val completionTime = completedChallenges[packageName] ?: return false
-        val currentTime = System.currentTimeMillis()
-
-        // Check if the challenge has timed out
-        val isValid = (currentTime - completionTime) < SESSION_TIMEOUT_MS
-
-        if (!isValid) {
-            // If timed out, remove from completed challenges
-            Log.d(TAG, "Challenge for $packageName has expired")
-            completedChallenges.remove(packageName)
-            return false
-        }
-
-        return true
+        return completedChallenges.contains(packageName)
     }
 
     /**
@@ -170,9 +154,10 @@ object SessionManager {
      *
      * @param fromPackage Previous package
      * @param toPackage New package
+     * @param lockedApps List of currently locked app package names
      */
     @Synchronized
-    fun handleAppSwitch(fromPackage: String?, toPackage: String) {
+    fun handleAppSwitch(fromPackage: String?, toPackage: String, lockedApps: List<String> = emptyList()) {
         Log.d(TAG, "App switch: $fromPackage -> $toPackage")
 
         // End session for previous app if it's different
@@ -180,16 +165,11 @@ object SessionManager {
             // Always end the session for the app we're leaving
             endSession(fromPackage)
 
-            // Check if we're going to home screen or another system UI
-            val goingToHomeOrSystem = toPackage.contains("launcher") ||
-                    toPackage.contains("systemui") ||
-                    toPackage.contains("home")
-
-            if (!goingToHomeOrSystem) {
-                // If we're going to another app (not home/system),
-                // always force a new challenge for that app
+            // If we're switching directly between two locked apps (not via home),
+            // force a new challenge for the destination app
+            if (lockedApps.contains(fromPackage) && lockedApps.contains(toPackage)) {
+                Log.d(TAG, "Detected direct switch between locked apps - forcing new challenge")
                 completedChallenges.remove(toPackage)
-                Log.d(TAG, "Switching to another app - forcing new challenge for: $toPackage")
             }
         }
     }
@@ -199,5 +179,5 @@ object SessionManager {
      *
      * @return List of package names with completed challenges
      */
-    fun getCompletedChallenges(): List<String> = completedChallenges.keys.toList()
+    fun getCompletedChallenges(): List<String> = completedChallenges.toList()
 }
