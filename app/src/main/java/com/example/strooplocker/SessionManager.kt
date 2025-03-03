@@ -17,7 +17,7 @@ object SessionManager {
     // Session timeout for determining when a completed challenge is no longer valid
     const val SESSION_TIMEOUT_MS = 5000L  // 5 seconds for test compatibility
 
-    // For real usage, use a longer timeout to ensure proper lock engagement
+    // For real usage, use a moderate timeout for better lock engagement
     // Previously this was only 500ms which was likely too short and causing issues
     private const val REAL_WORLD_TIMEOUT_MS = 3000L // 3 seconds for real-world behavior
 
@@ -36,6 +36,10 @@ object SessionManager {
 
     // Flag to indicate if we're in testing mode (to avoid auto-expiry)
     private var testingMode = false
+
+    // Last time sessions were cleared (to force periodic clearing)
+    private var lastClearTime = System.currentTimeMillis()
+    private const val FORCE_CLEAR_INTERVAL = 60000L // 1 minute
 
     /**
      * Creates a default Handler using the main Looper.
@@ -66,6 +70,9 @@ object SessionManager {
      */
     @Synchronized
     fun startChallenge(packageName: String): Boolean {
+        // Check if we should force a periodic clearing of challenges
+        checkForPeriodicClearing()
+
         if (challengeInProgress) {
             Log.d(TAG, "Cannot start challenge for $packageName: already in progress")
             return false
@@ -106,7 +113,6 @@ object SessionManager {
         // Only set auto-expiry in real usage, not during tests
         if (!testingMode) {
             // Set a timeout to expire this completion
-            // Using a more reasonable timeout that won't expire too quickly
             timeoutHandler.postDelayed({
                 Log.d(TAG, "Auto-expiring session for $packageName")
                 endSession(packageName)
@@ -132,10 +138,16 @@ object SessionManager {
      * Checks if a challenge has been completed for the given package
      * and is still valid (within the timeout period).
      *
+     * IMPORTANT: This also periodically forces clearing of all challenges
+     * to ensure the app remains aggressive about re-locking.
+     *
      * @param packageName The package name to check
      * @return true if the challenge has been completed for this package and is still valid
      */
     fun isChallengeCompleted(packageName: String): Boolean {
+        // Check if we should force a periodic clearing of challenges
+        checkForPeriodicClearing()
+
         val timestamp = completedChallenges[packageName] ?: return false
 
         // Check if the timestamp is still valid (within timeout period)
@@ -151,6 +163,21 @@ object SessionManager {
         }
 
         return true
+    }
+
+    /**
+     * Periodically clears all challenges to ensure the app doesn't stay
+     * unlocked for too long, even if the user keeps interacting with it.
+     */
+    private fun checkForPeriodicClearing() {
+        if (testingMode) return
+
+        val now = System.currentTimeMillis()
+        if (now - lastClearTime > FORCE_CLEAR_INTERVAL) {
+            Log.d(TAG, "Performing periodic clearing of all sessions")
+            completedChallenges.clear()
+            lastClearTime = now
+        }
     }
 
     /**
@@ -184,6 +211,7 @@ object SessionManager {
         Log.d(TAG, "Ending all sessions")
         completedChallenges.clear()
         resetChallenge()
+        lastClearTime = System.currentTimeMillis()
     }
 
     /**
@@ -196,6 +224,9 @@ object SessionManager {
     @Synchronized
     fun handleAppSwitch(fromPackage: String?, toPackage: String, lockedApps: List<String> = emptyList()) {
         Log.d(TAG, "App switch: $fromPackage -> $toPackage")
+
+        // Check if we should force a periodic clearing of challenges
+        checkForPeriodicClearing()
 
         // Skip processing if switching to the same app
         if (fromPackage == toPackage) {
@@ -224,6 +255,7 @@ object SessionManager {
             // When going to home screen, end all active app sessions to ensure
             // fresh challenges when reopening apps
             completedChallenges.clear()
+            lastClearTime = System.currentTimeMillis()
         }
     }
 

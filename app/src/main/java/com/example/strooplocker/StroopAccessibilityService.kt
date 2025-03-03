@@ -4,7 +4,10 @@ package com.example.strooplocker
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -30,6 +33,7 @@ import kotlinx.coroutines.withContext
  * - Detects when locked apps are opened
  * - Launches challenge activities
  * - Manages app sessions
+ * - Handles device lock/unlock events
  */
 class StroopAccessibilityService : AccessibilityService() {
 
@@ -48,6 +52,33 @@ class StroopAccessibilityService : AccessibilityService() {
     private var cachedLockedApps: List<String> = emptyList()
     private var lastLockedAppsUpdateTime: Long = 0
     private val CACHE_VALIDITY_PERIOD = 30000L // 30 seconds
+
+    // Track if device is currently in locked state
+    private var isDeviceLocked = false
+
+    // Broadcast receiver for screen events
+    private val screenReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                Intent.ACTION_SCREEN_OFF -> {
+                    LoggingUtil.debug(TAG, "onReceive", "SCREEN OFF detected")
+                    isDeviceLocked = true
+                }
+                Intent.ACTION_SCREEN_ON -> {
+                    LoggingUtil.debug(TAG, "onReceive", "SCREEN ON detected")
+                    // Just turning screen on doesn't necessarily unlock the device
+                }
+                Intent.ACTION_USER_PRESENT -> {
+                    LoggingUtil.debug(TAG, "onReceive", "USER PRESENT detected - device unlocked")
+                    isDeviceLocked = false
+                    // Reset all sessions when user unlocks the device
+                    // This ensures challenges will be required when returning to apps
+                    SessionManager.endAllSessions()
+                    currentForegroundPackage = null
+                }
+            }
+        }
+    }
 
     /**
      * Called when the service is connected and ready.
@@ -75,6 +106,14 @@ class StroopAccessibilityService : AccessibilityService() {
             CoroutineScope(Dispatchers.IO).launch {
                 refreshLockedAppsCache()
             }
+
+            // Register screen event receiver
+            val filter = IntentFilter().apply {
+                addAction(Intent.ACTION_SCREEN_ON)
+                addAction(Intent.ACTION_SCREEN_OFF)
+                addAction(Intent.ACTION_USER_PRESENT)
+            }
+            registerReceiver(screenReceiver, filter)
 
             // Show a toast to confirm service is running
             Handler(Looper.getMainLooper()).post {
@@ -121,6 +160,15 @@ class StroopAccessibilityService : AccessibilityService() {
             if (packageName == "com.example.strooplocker") {
                 LoggingUtil.debug(TAG, "onAccessibilityEvent", "SKIPPING: Our own app events")
                 return
+            }
+
+            // If we detect device was locked and now an app is opening
+            // (meaning the device must be unlocked), clear all sessions
+            if (isDeviceLocked) {
+                LoggingUtil.debug(TAG, "onAccessibilityEvent", "Device appears to be unlocking - clearing all sessions")
+                isDeviceLocked = false
+                SessionManager.endAllSessions()
+                currentForegroundPackage = null
             }
 
             // Track app switching to detect session endings
@@ -283,6 +331,14 @@ class StroopAccessibilityService : AccessibilityService() {
         super.onDestroy()
         LoggingUtil.debug(TAG, "onDestroy", "Service destroyed")
         isServiceActive = false
+
+        // Unregister receivers
+        try {
+            unregisterReceiver(screenReceiver)
+        } catch (e: Exception) {
+            // Already unregistered, ignore
+        }
+
         SessionManager.endAllSessions()
     }
 }
