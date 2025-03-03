@@ -4,6 +4,8 @@ package com.example.strooplocker
 
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.app.AlertDialog
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
@@ -20,6 +22,7 @@ import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import com.example.strooplocker.utils.SessionDebugger
 
 /**
  * Main activity for the str00py app.
@@ -147,18 +150,26 @@ class StroopLockActivity : AppCompatActivity() {
         challengeText = findViewById(R.id.challengeText)
         answerGrid = findViewById(R.id.answerGrid)
 
-        // Setup exit button - just close the activity without unlocking
-        findViewById<Button>(R.id.exitButton)?.setOnClickListener {
-            Log.d(TAG, "Exit button clicked - returning to home")
+// Setup exit button with debug capability
+        findViewById<Button>(R.id.exitButton)?.apply {
+            setOnClickListener {
+                Log.d(TAG, "Exit button clicked - returning to home")
 
-            // Launch home screen instead of the locked app
-            val homeIntent = Intent(Intent.ACTION_MAIN)
-            homeIntent.addCategory(Intent.CATEGORY_HOME)
-            homeIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            startActivity(homeIntent)
+                // Launch home screen instead of the locked app
+                val homeIntent = Intent(Intent.ACTION_MAIN)
+                homeIntent.addCategory(Intent.CATEGORY_HOME)
+                homeIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                startActivity(homeIntent)
 
-            // Close this activity
-            finish()
+                // Close this activity
+                finish()
+            }
+
+            // Add long press for debug report
+            setOnLongClickListener {
+                showDebugReport()
+                true
+            }
         }
 
         // Setup app selection button
@@ -641,6 +652,28 @@ class StroopLockActivity : AppCompatActivity() {
         } catch (e: Exception) {
             Log.e(TAG, "Error launching app: $packageName", e)
             Toast.makeText(this, getString(R.string.toast_error_generic, e.message), Toast.LENGTH_LONG).show()
+        }
+
+        /**
+         * Shows the session debug report in a dialog
+         */
+        private fun showDebugReport() {
+            val debugReport = SessionDebugger.getDebugReport()
+            AlertDialog.Builder(this)
+                .setTitle("Session Debug Report")
+                .setMessage(debugReport)
+                .setPositiveButton("Copy to Clipboard") { _, _ ->
+                    val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    val clip = ClipData.newPlainText("Session Debug Report", debugReport)
+                    clipboard.setPrimaryClip(clip)
+                    Toast.makeText(this, "Debug report copied to clipboard", Toast.LENGTH_SHORT).show()
+                }
+                .setNegativeButton("Close", null)
+                .setNeutralButton("Clear Log") { _, _ ->
+                    SessionDebugger.clearLog()
+                    Toast.makeText(this, "Debug log cleared", Toast.LENGTH_SHORT).show()
+                }
+                .show()
         }
     }
 }

@@ -4,6 +4,8 @@ package com.example.strooplocker
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import com.example.strooplocker.utils.SessionDebugger
+
 
 /**
  * SessionManager manages app session states and challenge tracking.
@@ -75,10 +77,12 @@ object SessionManager {
 
         if (challengeInProgress) {
             Log.d(TAG, "Cannot start challenge for $packageName: already in progress")
+            SessionDebugger.logChallenge(packageName, "START_FAILED", "already in progress")
             return false
         }
 
         Log.d(TAG, "Starting challenge for $packageName")
+        SessionDebugger.logChallenge(packageName, "STARTED")
         challengeInProgress = true
         currentChallengePackage = packageName
 
@@ -102,6 +106,7 @@ object SessionManager {
     @Synchronized
     fun completeChallenge(packageName: String) {
         Log.d(TAG, "Completing challenge for $packageName")
+        SessionDebugger.logChallenge(packageName, "COMPLETED")
         challengeInProgress = false
         currentChallengePackage = null
 
@@ -115,6 +120,7 @@ object SessionManager {
             // Set a timeout to expire this completion
             timeoutHandler.postDelayed({
                 Log.d(TAG, "Auto-expiring session for $packageName")
+                SessionDebugger.logSessionStatus(packageName, false, "auto-expiry")
                 endSession(packageName)
             }, REAL_WORLD_TIMEOUT_MS)
         }
@@ -150,7 +156,6 @@ object SessionManager {
     fun isChallengeCompleted(packageName: String): Boolean {
         // Debug logging
         Log.d(TAG, "CHECK_LOCK: Checking if challenge for $packageName is completed")
-        Log.d(TAG, "CHECK_LOCK: Current completed challenges: ${completedChallenges.keys.joinToString()}")
 
         // Check if we should force a periodic clearing of challenges
         checkForPeriodicClearing()
@@ -165,10 +170,12 @@ object SessionManager {
         // If expired, remove it and return false
         if (!isValid) {
             Log.d(TAG, "Challenge for $packageName has expired (age: ${now - timestamp}ms, timeout: ${timeoutToUse}ms)")
+            SessionDebugger.logSessionStatus(packageName, false, "timeout: ${now - timestamp}ms > ${timeoutToUse}ms")
             completedChallenges.remove(packageName)
             return false
         }
 
+        SessionDebugger.logSessionStatus(packageName, true, "within timeout: ${now - timestamp}ms < ${timeoutToUse}ms")
         return true
     }
 
@@ -207,6 +214,7 @@ object SessionManager {
     @Synchronized
     fun endSession(packageName: String) {
         Log.d(TAG, "Ending session for: $packageName")
+        SessionDebugger.logSessionStatus(packageName, false, "session ended explicitly")
         completedChallenges.remove(packageName)
     }
 
@@ -216,6 +224,8 @@ object SessionManager {
     @Synchronized
     fun endAllSessions() {
         Log.d(TAG, "Ending all sessions")
+        SessionDebugger.logEvent("GLOBAL", "ALL_SESSIONS_ENDED",
+            "cleared ${completedChallenges.size} sessions")
         completedChallenges.clear()
         resetChallenge()
         lastClearTime = System.currentTimeMillis()
@@ -232,7 +242,7 @@ object SessionManager {
     @Synchronized
     fun handleAppSwitch(fromPackage: String?, toPackage: String, lockedApps: List<String> = emptyList()) {
         Log.d(TAG, "APP_SWITCH: From $fromPackage -> To $toPackage")
-        Log.d(TAG, "APP_SWITCH: Locked apps list: ${lockedApps.joinToString()}")
+        SessionDebugger.logAppSwitch(fromPackage, toPackage)
 
         // Check if we should force a periodic clearing of challenges
         checkForPeriodicClearing()
