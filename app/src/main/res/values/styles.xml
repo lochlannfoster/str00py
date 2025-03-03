@@ -15,5 +15,17 @@
         <item name="android:backgroundTintMode">src_over</item>
     </style>
 
+    <style name="StroopButton" parent="Widget.MaterialComponents.Button">
+        <item name="android:textSize">18sp</item>
+        <item name="android:paddingStart">16dp</item>
+        <item name="android:paddingEnd">16dp</item>
+        <item name="android:paddingTop">12dp</item>
+        <item name="android:paddingBottom">12dp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:elevation">4dp</item>
+        <item name="cornerRadius">8dp</item>
+        <item name="android:minWidth">96dp</item>
+    </style>
+
 
 </resources>

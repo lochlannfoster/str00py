@@ -11,6 +11,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
+import android.util.TypedValue
 import android.view.accessibility.AccessibilityManager
 import android.widget.Button
 import android.widget.GridLayout
@@ -483,10 +484,6 @@ class StroopLockActivity : AppCompatActivity() {
             // Clear existing buttons
             answerGrid.removeAllViews()
 
-            // Explicitly set column and row count
-            answerGrid.columnCount = 3
-            answerGrid.rowCount = 3
-
             // Create a shuffled list of colors for buttons
             val shuffledColors = colorNames.shuffled()
 
@@ -501,7 +498,7 @@ class StroopLockActivity : AppCompatActivity() {
                 val button = Button(this)
                 button.text = colorName
 
-                // Make buttons more visible
+                // Make buttons more visible with improved contrast
                 button.textSize = 18f
                 button.setPadding(8, 16, 8, 16)
 
@@ -514,13 +511,27 @@ class StroopLockActivity : AppCompatActivity() {
                 }
 
                 val textColorName = shuffledColors[textColorIndex]
-                button.setTextColor(colorMap[textColorName] ?: Color.BLACK)
+
+                // Get background color from our theme
+                val typedValue = TypedValue()
+                theme.resolveAttribute(android.R.attr.colorBackground, typedValue, true)
+                val buttonBackground = typedValue.data
+
+                // Set contrasting text color
+                val textColor = colorMap[textColorName] ?: Color.BLACK
+
+                // Apply button styling
+                button.setTextColor(textColor)
+                button.setBackgroundColor(buttonBackground)
+
+                // Add elevation and border for better visibility
+                button.elevation = 4f
 
                 // Fixed layout parameters for consistent button sizes
                 val params = GridLayout.LayoutParams()
                 params.width = GridLayout.LayoutParams.WRAP_CONTENT
                 params.height = GridLayout.LayoutParams.WRAP_CONTENT
-                params.setMargins(8, 8, 8, 8)
+                params.setMargins(12, 12, 12, 12)
                 params.columnSpec = GridLayout.spec(i % 3, 1f)
                 params.rowSpec = GridLayout.spec(i / 3, 1f)
                 button.layoutParams = params
@@ -540,7 +551,6 @@ class StroopLockActivity : AppCompatActivity() {
             Toast.makeText(this, getString(R.string.toast_error_buttons, e.message), Toast.LENGTH_SHORT).show()
         }
     }
-
     /**
      * Handles the selection of a color button.
      * If the selected color matches the correct answer (the ink color),

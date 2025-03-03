@@ -228,6 +228,7 @@ object SessionManager {
      * @param toPackage New package
      * @param lockedApps List of currently locked app package names
      */
+
     @Synchronized
     fun handleAppSwitch(fromPackage: String?, toPackage: String, lockedApps: List<String> = emptyList()) {
         Log.d(TAG, "APP_SWITCH: From $fromPackage -> To $toPackage")
@@ -242,9 +243,17 @@ object SessionManager {
             return
         }
 
-        // End session for previous app if it's different
+        // Special home screen handling - end sessions when going home
+        if (isHomeScreen(toPackage)) {
+            Log.d(TAG, "Going to home screen - ending all active sessions")
+            // When going to home screen, end all active app sessions
+            completedChallenges.clear()
+            lastClearTime = System.currentTimeMillis()
+            return
+        }
+
+        // End session for previous app
         if (fromPackage != null) {
-            // Always end the session for the app we're leaving
             Log.d(TAG, "Ending session for app we're leaving: $fromPackage")
             endSession(fromPackage)
         }
@@ -254,14 +263,14 @@ object SessionManager {
             Log.d(TAG, "Ensuring a fresh challenge for locked app: $toPackage")
             endSession(toPackage)
         }
+    }
 
-        // Special home screen handling - end sessions when going home
-        if (toPackage.contains("launcher") || toPackage.contains("home")) {
-            Log.d(TAG, "Going to home screen - ending all active sessions")
-            // When going to home screen, end all active app sessions
-            completedChallenges.clear()
-            lastClearTime = System.currentTimeMillis()
-        }
+    // Add a helper method to identify home screen packages
+    private fun isHomeScreen(packageName: String): Boolean {
+        return packageName.contains("launcher") ||
+                packageName.contains("home") ||
+                packageName == "com.google.android.apps.nexuslauncher" ||
+                packageName == "com.android.launcher"
     }
     /**
      * Retrieves list of completed challenges.

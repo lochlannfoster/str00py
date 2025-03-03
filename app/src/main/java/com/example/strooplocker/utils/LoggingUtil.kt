@@ -1,6 +1,7 @@
 package com.example.strooplocker.utils
 
 import android.util.Log
+import com.example.strooplocker.BuildConfig
 
 /**
  * Utility class for consistent logging throughout the application.
@@ -24,7 +25,9 @@ object LoggingUtil {
      * @param message The message to log
      */
     fun debug(tag: String, method: String, message: String) {
-        Log.d(tag, "[$method] $message")
+        if (BuildConfig.DEBUG) {
+            Log.d(tag, "[$method] $message")
+        }
     }
 
     /**
