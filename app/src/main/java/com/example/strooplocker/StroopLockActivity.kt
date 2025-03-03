@@ -37,10 +37,6 @@ class StroopLockActivity : AppCompatActivity() {
     companion object {
         const val TAG = "StroopLockActivity"
         const val EXTRA_LOCKED_PACKAGE = "extra_locked_package"
-
-        // Set of packages that have completed challenges
-        // Exposed so other classes can access this information
-        val completedChallenges = mutableSetOf<String>()
     }
 
     // UI elements for the challenge
@@ -553,6 +549,7 @@ class StroopLockActivity : AppCompatActivity() {
      *
      * @param selectedColor The color name selected by the user
      */
+// Update the onColorSelected method:
     private fun onColorSelected(selectedColor: String) {
         if (selectedColor == correctColor) {
             Log.d(TAG, "Correct answer selected: $selectedColor")
@@ -589,8 +586,8 @@ class StroopLockActivity : AppCompatActivity() {
      * @return true if the challenge has been completed, false otherwise
      */
     private fun checkChallengeCompletion(packageName: String): Boolean {
-        // Check if the challenge for this package has been completed recently
-        return completedChallenges.contains(packageName) || SessionManager.isChallengeCompleted(packageName)
+        // Only use SessionManager for challenge completion status
+        return SessionManager.isChallengeCompleted(packageName)
     }
 
     /**

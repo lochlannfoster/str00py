@@ -203,5 +203,32 @@ class SessionManagerTest {
             completedChallenges.contains(testPackage1))
         assertTrue("List should contain second package",
             completedChallenges.contains(testPackage2))
+
+        @Test
+        fun isChallengeCompleted_afterTimeout_returnsFalse() {
+            // Arrange
+            val packageName = "com.example.app1"
+            SessionManager.startChallenge(packageName)
+            SessionManager.completeChallenge(packageName)
+            assertTrue(SessionManager.isChallengeCompleted(packageName))
+
+            // Mock System.currentTimeMillis to simulate passage of time
+            // This requires using a static mock for System, which is complicated
+            // Instead, we'll use reflection to modify the timestamp directly
+            val completedChallengesField = SessionManager::class.java.getDeclaredField("completedChallenges")
+            completedChallengesField.isAccessible = true
+            val completedChallenges = completedChallengesField.get(SessionManager) as MutableMap<String, Long>
+
+            // Set completion time to 6 seconds ago (beyond the 5 second timeout)
+            val sixSecondsAgo = System.currentTimeMillis() - 6000L
+            completedChallenges[packageName] = sixSecondsAgo
+
+            // Act & Assert
+            assertFalse("Challenge should expire after timeout",
+                SessionManager.isChallengeCompleted(packageName))
+
+            // Verify it was removed from the map
+            assertEquals(0, completedChallenges.size)
+        }
     }
 }

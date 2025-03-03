@@ -93,6 +93,7 @@ object SessionManager {
 
         timeoutHandler.removeCallbacksAndMessages(null)
     }
+
     /**
      * Checks if a challenge is currently in progress.
      *

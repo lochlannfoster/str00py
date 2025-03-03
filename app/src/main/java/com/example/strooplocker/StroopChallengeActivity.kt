@@ -161,14 +161,17 @@ class StroopChallengeActivity : AppCompatActivity() {
      *
      * @param selectedColor The color name selected by the user
      */
+// Update the onColorSelected method:
     private fun onColorSelected(selectedColor: String) {
         if (selectedColor == correctColor) {
             Log.d(TAG, "Correct answer selected: $selectedColor")
             Toast.makeText(this, getString(R.string.correct_answer), Toast.LENGTH_SHORT).show()
 
-            // Mark challenge as completed and launch the app
-            StroopLockActivity.completedChallenges.add(packageToLaunch ?: "")
-            launchLockedApp()
+            // Mark challenge as completed using SessionManager
+            packageToLaunch?.let { pkg ->
+                SessionManager.completeChallenge(pkg)
+                launchLockedApp()
+            }
         } else {
             Log.d(TAG, "Incorrect answer: $selectedColor, expected: $correctColor")
             Toast.makeText(this, getString(R.string.incorrect_answer), Toast.LENGTH_SHORT).show()
