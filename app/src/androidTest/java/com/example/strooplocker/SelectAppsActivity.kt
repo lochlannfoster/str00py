@@ -1,6 +1,5 @@
 package com.example.strooplocker
 
-import android.view.View
 import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.IdlingRegistry
 import androidx.test.espresso.IdlingResource
@@ -18,15 +17,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import androidx.test.espresso.contrib.RecyclerViewActions
 import androidx.recyclerview.widget.RecyclerView
-import androidx.test.espresso.UiController
-import androidx.test.espresso.ViewAction
-import androidx.test.espresso.matcher.BoundedMatcher
-import androidx.test.espresso.util.HumanReadables
-import androidx.test.espresso.util.TreeIterables
-import org.hamcrest.Description
-import org.hamcrest.Matcher
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
+import android.app.Activity
+import android.view.View
 
 /**
  * UI tests for [SelectAppsActivity]
@@ -42,6 +34,7 @@ class SelectAppsActivityTest {
      * Custom IdlingResource that waits for RecyclerView to have items
      */
     class RecyclerViewIdlingResource(
+        private val activity: Activity,
         private val recyclerViewId: Int,
         private val minItemCount: Int = 1
     ) : IdlingResource {
@@ -53,7 +46,6 @@ class SelectAppsActivityTest {
         override fun isIdleNow(): Boolean {
             if (isIdle) return true
 
-            val activity = activityRule.activity
             val recyclerView = activity.findViewById<RecyclerView>(recyclerViewId)
 
             // Check if RecyclerView exists and has items
@@ -76,25 +68,30 @@ class SelectAppsActivityTest {
     @get:Rule
     val activityRule = ActivityTestRule(SelectAppsActivity::class.java, false, false)
 
-    private lateinit var recyclerViewIdlingResource: RecyclerViewIdlingResource
+    private var recyclerViewIdlingResource: RecyclerViewIdlingResource? = null
 
     @Before
     fun setup() {
         // Reset session state
         SessionManager.endAllSessions()
 
-        // Launch activity manually so we can register idling resource first
+        // Launch activity manually
         activityRule.launchActivity(null)
 
-        // Register idling resource for RecyclerView
-        recyclerViewIdlingResource = RecyclerViewIdlingResource(R.id.appsRecyclerView)
+        // Register idling resource after activity is launched
+        recyclerViewIdlingResource = RecyclerViewIdlingResource(
+            activityRule.activity,
+            R.id.appsRecyclerView
+        )
         IdlingRegistry.getInstance().register(recyclerViewIdlingResource)
     }
 
     @After
     fun cleanup() {
         // Make sure to unregister the idling resource
-        IdlingRegistry.getInstance().unregister(recyclerViewIdlingResource)
+        recyclerViewIdlingResource?.let {
+            IdlingRegistry.getInstance().unregister(it)
+        }
     }
 
     @Test
@@ -151,46 +148,6 @@ class SelectAppsActivityTest {
         } catch (e: Exception) {
             // If we can't perform the test, consider it passed but log it
             e.printStackTrace()
-        }
-    }
-
-    // Helper method to wait for a specific condition
-    private fun waitFor(timeout: Long, unit: TimeUnit, viewMatcher: Matcher<View>) {
-        val latch = CountDownLatch(1)
-
-        val viewAction = object : ViewAction {
-            override fun getConstraints(): Matcher<View> = isRoot()
-
-            override fun getDescription(): String = "wait for condition"
-
-            override fun perform(uiController: UiController, view: View) {
-                uiController.loopMainThreadUntilIdle()
-
-                val found = findView(view, viewMatcher)
-
-                if (found != null) {
-                    latch.countDown()
-                    return
-                }
-
-                uiController.loopMainThreadForAtLeast(100)
-            }
-
-            private fun findView(root: View, matcher: Matcher<View>): View? {
-                for (view in TreeIterables.breadthFirstViewTraversal(root)) {
-                    if (matcher.matches(view)) {
-                        return view
-                    }
-                }
-                return null
-            }
-        }
-
-        try {
-            onView(isRoot()).perform(viewAction)
-            latch.await(timeout, unit)
-        } catch (e: Exception) {
-            throw RuntimeException("Waiting for match timed out", e)
         }
     }
 }
