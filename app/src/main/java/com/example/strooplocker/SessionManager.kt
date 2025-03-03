@@ -15,7 +15,7 @@ object SessionManager {
     private const val TAG = "SessionManager"
 
     // Track completed challenge packages
-    private val completedChallenges = mutableSetOf<String>()
+    private val completedChallenges = mutableMapOf<String, Long>() // Map of package name to completion timestamp
 
     // Only track if a challenge is currently in progress to prevent overlapping challenges
     @Volatile
@@ -37,6 +37,8 @@ object SessionManager {
             Handler()
         }
     }
+
+    private const val SESSION_TIMEOUT_MS = 5000L // 5 seconds timeout for sessions
 
     /**
      * Testing method to replace the handler for unit testing.
@@ -86,12 +88,11 @@ object SessionManager {
         challengeInProgress = false
         currentChallengePackage = null
 
-        // Add to completed challenges set
-        completedChallenges.add(packageName)
+        // Add to completed challenges map with current timestamp
+        completedChallenges[packageName] = System.currentTimeMillis()
 
         timeoutHandler.removeCallbacksAndMessages(null)
     }
-
     /**
      * Checks if a challenge is currently in progress.
      *
@@ -112,8 +113,22 @@ object SessionManager {
      * @param packageName The package name to check
      * @return true if the challenge has been completed for this package
      */
+    @Synchronized
     fun isChallengeCompleted(packageName: String): Boolean {
-        return completedChallenges.contains(packageName)
+        val completionTime = completedChallenges[packageName] ?: return false
+        val currentTime = System.currentTimeMillis()
+
+        // Check if the challenge has timed out
+        val isValid = (currentTime - completionTime) < SESSION_TIMEOUT_MS
+
+        if (!isValid) {
+            // If timed out, remove from completed challenges
+            Log.d(TAG, "Challenge for $packageName has expired")
+            completedChallenges.remove(packageName)
+            return false
+        }
+
+        return true
     }
 
     /**
@@ -178,5 +193,5 @@ object SessionManager {
      *
      * @return List of package names with completed challenges
      */
-    fun getCompletedChallenges(): List<String> = completedChallenges.toList()
+    fun getCompletedChallenges(): List<String> = completedChallenges.keys.toList()
 }
