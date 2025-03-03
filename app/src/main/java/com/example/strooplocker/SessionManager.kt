@@ -17,8 +17,9 @@ object SessionManager {
     // Session timeout for determining when a completed challenge is no longer valid
     const val SESSION_TIMEOUT_MS = 5000L  // 5 seconds for test compatibility
 
-    // For real usage, use a shorter timeout
-    private const val REAL_WORLD_TIMEOUT_MS = 500L // 500ms for real-world aggressive behavior
+    // For real usage, use a longer timeout to ensure proper lock engagement
+    // Previously this was only 500ms which was likely too short and causing issues
+    private const val REAL_WORLD_TIMEOUT_MS = 3000L // 3 seconds for real-world behavior
 
     // Track completed challenges with timestamps
     private val completedChallenges = mutableMapOf<String, Long>()
@@ -104,8 +105,8 @@ object SessionManager {
 
         // Only set auto-expiry in real usage, not during tests
         if (!testingMode) {
-            // Set a very short timeout to expire this completion quickly
-            // This makes the locking very aggressive in real usage
+            // Set a timeout to expire this completion
+            // Using a more reasonable timeout that won't expire too quickly
             timeoutHandler.postDelayed({
                 Log.d(TAG, "Auto-expiring session for $packageName")
                 endSession(packageName)
@@ -144,6 +145,7 @@ object SessionManager {
 
         // If expired, remove it and return false
         if (!isValid) {
+            Log.d(TAG, "Challenge for $packageName has expired (age: ${now - timestamp}ms, timeout: ${timeoutToUse}ms)")
             completedChallenges.remove(packageName)
             return false
         }
@@ -195,16 +197,33 @@ object SessionManager {
     fun handleAppSwitch(fromPackage: String?, toPackage: String, lockedApps: List<String> = emptyList()) {
         Log.d(TAG, "App switch: $fromPackage -> $toPackage")
 
+        // Skip processing if switching to the same app
+        if (fromPackage == toPackage) {
+            Log.d(TAG, "Same app switch - no action needed")
+            return
+        }
+
         // End session for previous app if it's different
-        if (fromPackage != null && fromPackage != toPackage) {
-            // End the session for the app we're leaving
+        if (fromPackage != null) {
+            // Always end the session for the app we're leaving to maintain
+            // compatibility with existing tests and expectations
+            Log.d(TAG, "Ending session for app we're leaving: $fromPackage")
             endSession(fromPackage)
 
             // If the destination app is locked, always clear any previous completion
-            // This means whenever you switch TO a locked app, you'll get a challenge
+            // This guarantees a challenge when switching directly to any locked app
             if (lockedApps.contains(toPackage)) {
+                Log.d(TAG, "Ensuring a fresh challenge for locked app we're entering: $toPackage")
                 endSession(toPackage)
             }
+        }
+
+        // Special home screen handling - end sessions when going home
+        if (toPackage.contains("launcher") || toPackage.contains("home")) {
+            Log.d(TAG, "Going to home screen - ending all active sessions")
+            // When going to home screen, end all active app sessions to ensure
+            // fresh challenges when reopening apps
+            completedChallenges.clear()
         }
     }
 

@@ -44,6 +44,11 @@ class StroopAccessibilityService : AccessibilityService() {
     // Flag to track if service is currently active
     private var isServiceActive = false
 
+    // Cache of locked apps to reduce DB lookups
+    private var cachedLockedApps: List<String> = emptyList()
+    private var lastLockedAppsUpdateTime: Long = 0
+    private val CACHE_VALIDITY_PERIOD = 30000L // 30 seconds
+
     /**
      * Called when the service is connected and ready.
      * Configures the service to monitor app launches and switches.
@@ -65,6 +70,11 @@ class StroopAccessibilityService : AccessibilityService() {
 
             // Reset all session and challenge states
             SessionManager.endAllSessions()
+
+            // Initialize locked apps cache
+            CoroutineScope(Dispatchers.IO).launch {
+                refreshLockedAppsCache()
+            }
 
             // Show a toast to confirm service is running
             Handler(Looper.getMainLooper()).post {
@@ -118,11 +128,15 @@ class StroopAccessibilityService : AccessibilityService() {
                 // Returning to home screen should end all sessions
                 LoggingUtil.debug(TAG, "onAccessibilityEvent", "HOME SCREEN: Ending all sessions")
                 val previousPackage = currentForegroundPackage
-                if (previousPackage != null && previousPackage != packageName) {
-                    LoggingUtil.debug(TAG, "onAccessibilityEvent", "Ending session for: $previousPackage")
-                    SessionManager.endSession(previousPackage)
-                }
                 currentForegroundPackage = packageName
+
+                // Process home screen transition
+                if (previousPackage != null && previousPackage != packageName) {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        ensureLockedAppsCacheValid()
+                        SessionManager.handleAppSwitch(previousPackage, packageName, cachedLockedApps)
+                    }
+                }
             }
             // App switch
             else if (currentForegroundPackage != packageName) {
@@ -137,6 +151,32 @@ class StroopAccessibilityService : AccessibilityService() {
                 // Check if the new app should be locked, and handle the app switch
                 performCheckAndLockApp(packageName, previousPackage)
             }
+        }
+    }
+
+    /**
+     * Ensures the locked apps cache is valid and refreshes it if needed
+     */
+    private suspend fun ensureLockedAppsCacheValid() {
+        val now = System.currentTimeMillis()
+        if (now - lastLockedAppsUpdateTime > CACHE_VALIDITY_PERIOD) {
+            refreshLockedAppsCache()
+        }
+    }
+
+    /**
+     * Refreshes the cached list of locked apps from the database
+     */
+    private suspend fun refreshLockedAppsCache() {
+        try {
+            val repository = LockedAppsRepository(
+                LockedAppDatabase.getInstance(this@StroopAccessibilityService).lockedAppDao()
+            )
+            cachedLockedApps = repository.getAllLockedApps()
+            lastLockedAppsUpdateTime = System.currentTimeMillis()
+            LoggingUtil.debug(TAG, "refreshLockedAppsCache", "Updated locked apps cache: ${cachedLockedApps.joinToString()}")
+        } catch (e: Exception) {
+            LoggingUtil.error(TAG, "refreshLockedAppsCache", "Error refreshing locked apps cache", e)
         }
     }
 
@@ -156,12 +196,6 @@ class StroopAccessibilityService : AccessibilityService() {
             return
         }
 
-        // Skip if this app has already completed a challenge
-        if (SessionManager.isChallengeCompleted(packageName)) {
-            LoggingUtil.debug(TAG, "performCheckAndLockApp", "SKIPPING: Challenge already completed for $packageName")
-            return
-        }
-
         // Skip our own app
         if (packageName == "com.example.strooplocker") {
             LoggingUtil.debug(TAG, "performCheckAndLockApp", "SKIPPING: This is our own app")
@@ -170,25 +204,28 @@ class StroopAccessibilityService : AccessibilityService() {
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val repository = LockedAppsRepository(
-                    LockedAppDatabase.getInstance(this@StroopAccessibilityService).lockedAppDao()
-                )
+                // Ensure we have up-to-date locked apps list
+                ensureLockedAppsCacheValid()
 
-                val lockedApps = repository.getAllLockedApps()
-                LoggingUtil.debug(TAG, "performCheckAndLockApp", "LOCKED APPS: ${lockedApps.joinToString()}")
+                // Log current state before making any decisions
+                LoggingUtil.debug(TAG, "performCheckAndLockApp", "LOCKED APPS: ${cachedLockedApps.joinToString()}")
                 LoggingUtil.debug(TAG, "performCheckAndLockApp", "COMPLETED CHALLENGES: ${SessionManager.getCompletedChallenges().joinToString()}")
+                LoggingUtil.debug(TAG, "performCheckAndLockApp", "Is challenge for $packageName already completed? ${SessionManager.isChallengeCompleted(packageName)}")
 
                 // Handle app switch with locked apps information if this is from an app switch
                 if (previousPackage != null) {
-                    SessionManager.handleAppSwitch(previousPackage, packageName, lockedApps)
+                    // This will ensure proper session management during app switches
+                    SessionManager.handleAppSwitch(previousPackage, packageName, cachedLockedApps)
                 }
 
-                val isLocked = lockedApps.contains(packageName)
+                // After the switch is handled, check again if this app needs a challenge
+                val isLocked = cachedLockedApps.contains(packageName)
+                val hasCompletedChallenge = SessionManager.isChallengeCompleted(packageName)
 
-                LoggingUtil.debug(TAG, "performCheckAndLockApp", "APP STATUS: $packageName | Locked: $isLocked")
+                LoggingUtil.debug(TAG, "performCheckAndLockApp", "FINAL APP STATUS: $packageName | Locked: $isLocked | Challenge completed: $hasCompletedChallenge")
 
                 // Only launch challenge if app is locked and not recently completed
-                if (isLocked) {
+                if (isLocked && !hasCompletedChallenge) {
                     // Start the challenge in SessionManager
                     val challengeStarted = SessionManager.startChallenge(packageName)
 
@@ -214,7 +251,12 @@ class StroopAccessibilityService : AccessibilityService() {
                         LoggingUtil.debug(TAG, "performCheckAndLockApp", "SKIPPING: Could not start challenge for $packageName")
                     }
                 } else {
-                    LoggingUtil.debug(TAG, "performCheckAndLockApp", "SKIPPING: $packageName is not locked")
+                    val reason = when {
+                        !isLocked -> "not locked"
+                        hasCompletedChallenge -> "challenge already completed"
+                        else -> "unknown reason"
+                    }
+                    LoggingUtil.debug(TAG, "performCheckAndLockApp", "SKIPPING: $packageName ($reason)")
                 }
             } catch (e: Exception) {
                 LoggingUtil.error(TAG, "performCheckAndLockApp", "ERROR checking locked status", e)
