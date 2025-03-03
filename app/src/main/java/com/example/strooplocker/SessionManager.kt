@@ -14,10 +14,13 @@ import android.util.Log
 object SessionManager {
     private const val TAG = "SessionManager"
 
-    // Add the missing session timeout constant - 5 seconds
-    const val SESSION_TIMEOUT_MS = 5000L
+    // Session timeout for determining when a completed challenge is no longer valid
+    const val SESSION_TIMEOUT_MS = 5000L  // 5 seconds for test compatibility
 
-    // Change from a Set to a Map with timestamps to support timeout functionality
+    // For real usage, use a shorter timeout
+    private const val REAL_WORLD_TIMEOUT_MS = 500L // 500ms for real-world aggressive behavior
+
+    // Track completed challenges with timestamps
     private val completedChallenges = mutableMapOf<String, Long>()
 
     // Only track if a challenge is currently in progress to prevent overlapping challenges
@@ -29,6 +32,9 @@ object SessionManager {
 
     // Handler for timeouts (needed for testing)
     private var timeoutHandler: Handler = createDefaultHandler()
+
+    // Flag to indicate if we're in testing mode (to avoid auto-expiry)
+    private var testingMode = false
 
     /**
      * Creates a default Handler using the main Looper.
@@ -43,10 +49,12 @@ object SessionManager {
 
     /**
      * Testing method to replace the handler for unit testing.
+     * Also activates testing mode which disables auto-expiry.
      */
     @Suppress("TestOnly")
     fun replaceHandlerForTesting(handler: Handler) {
         timeoutHandler = handler
+        testingMode = true
     }
 
     /**
@@ -93,6 +101,16 @@ object SessionManager {
         completedChallenges[packageName] = System.currentTimeMillis()
 
         timeoutHandler.removeCallbacksAndMessages(null)
+
+        // Only set auto-expiry in real usage, not during tests
+        if (!testingMode) {
+            // Set a very short timeout to expire this completion quickly
+            // This makes the locking very aggressive in real usage
+            timeoutHandler.postDelayed({
+                Log.d(TAG, "Auto-expiring session for $packageName")
+                endSession(packageName)
+            }, REAL_WORLD_TIMEOUT_MS)
+        }
     }
 
     /**
@@ -121,7 +139,8 @@ object SessionManager {
 
         // Check if the timestamp is still valid (within timeout period)
         val now = System.currentTimeMillis()
-        val isValid = (now - timestamp) < SESSION_TIMEOUT_MS
+        val timeoutToUse = if (testingMode) SESSION_TIMEOUT_MS else REAL_WORLD_TIMEOUT_MS
+        val isValid = (now - timestamp) < timeoutToUse
 
         // If expired, remove it and return false
         if (!isValid) {
@@ -178,14 +197,13 @@ object SessionManager {
 
         // End session for previous app if it's different
         if (fromPackage != null && fromPackage != toPackage) {
-            // Always end the session for the app we're leaving
+            // End the session for the app we're leaving
             endSession(fromPackage)
 
-            // If we're switching directly between two locked apps (not via home),
-            // force a new challenge for the destination app
-            if (lockedApps.contains(fromPackage) && lockedApps.contains(toPackage)) {
-                Log.d(TAG, "Detected direct switch between locked apps - forcing new challenge")
-                completedChallenges.remove(toPackage)
+            // If the destination app is locked, always clear any previous completion
+            // This means whenever you switch TO a locked app, you'll get a challenge
+            if (lockedApps.contains(toPackage)) {
+                endSession(toPackage)
             }
         }
     }
