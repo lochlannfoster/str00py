@@ -1,3 +1,4 @@
+// app/src/main/java/com/example/strooplocker/SessionManager.kt
 package com.example.strooplocker
 
 import android.os.Handler
@@ -10,12 +11,11 @@ import android.util.Log
  * This singleton provides a centralized way to track app challenge completions,
  * manage session lifecycles, and handle app switching scenarios.
  */
-/**
- * Simplified SessionManager with straightforward logic.
- * Any locked app that's opened will require a challenge, regardless of history.
- */
 object SessionManager {
     private const val TAG = "SessionManager"
+
+    // Track completed challenge packages
+    private val completedChallenges = mutableSetOf<String>()
 
     // Only track if a challenge is currently in progress to prevent overlapping challenges
     @Volatile
@@ -85,6 +85,10 @@ object SessionManager {
         Log.d(TAG, "Completing challenge for $packageName")
         challengeInProgress = false
         currentChallengePackage = null
+
+        // Add to completed challenges set
+        completedChallenges.add(packageName)
+
         timeoutHandler.removeCallbacksAndMessages(null)
     }
 
@@ -103,6 +107,16 @@ object SessionManager {
     fun getCurrentChallengePackage(): String? = currentChallengePackage
 
     /**
+     * Checks if a challenge has been completed for the given package.
+     *
+     * @param packageName The package name to check
+     * @return true if the challenge has been completed for this package
+     */
+    fun isChallengeCompleted(packageName: String): Boolean {
+        return completedChallenges.contains(packageName)
+    }
+
+    /**
      * Resets the current challenge state.
      */
     @Synchronized
@@ -112,7 +126,18 @@ object SessionManager {
         currentChallengePackage = null
         timeoutHandler.removeCallbacksAndMessages(null)
     }
-}
+
+    /**
+     * Ends a session for the given package.
+     * This removes the package from the completed challenges list.
+     *
+     * @param packageName The package name to end session for
+     */
+    @Synchronized
+    fun endSession(packageName: String) {
+        Log.d(TAG, "Ending session for: $packageName")
+        completedChallenges.remove(packageName)
+    }
 
     /**
      * Ends all active sessions.
@@ -124,12 +149,6 @@ object SessionManager {
         resetChallenge()
     }
 
-    /**
-     * Handles app switch events to manage sessions.
-     *
-     * @param fromPackage Previous package
-     * @param toPackage New package
-     */
     /**
      * Handles app switch events to manage sessions.
      *

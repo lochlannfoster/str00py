@@ -581,7 +581,7 @@ class StroopLockActivity : AppCompatActivity() {
             generateChallenge()
         }
     }
-    
+
     /**
      * Checks if a challenge for the given package has been completed recently.
      *

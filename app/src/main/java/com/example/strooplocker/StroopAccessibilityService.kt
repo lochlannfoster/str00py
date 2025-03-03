@@ -1,4 +1,5 @@
-// app/src/main/java/com/example/strooplocker/StroopAccessibilityService.kt
+// File: app/src/main/java/com/example/strooplocker/StroopAccessibilityService.kt
+
 package com.example.strooplocker
 
 import android.accessibilityservice.AccessibilityService
@@ -124,7 +125,6 @@ class StroopAccessibilityService : AccessibilityService() {
                 currentForegroundPackage = packageName
             }
             // App switch
-            // App switch
             else if (currentForegroundPackage != packageName) {
                 LoggingUtil.debug(TAG, "onAccessibilityEvent", "APP SWITCH: From ${currentForegroundPackage ?: "null"} to $packageName")
 
@@ -133,71 +133,6 @@ class StroopAccessibilityService : AccessibilityService() {
 
                 // Always check if the new app should be locked, regardless of history
                 performCheckAndLockApp(packageName)
-            }
-
-            // Then simplify the performCheckAndLockApp method:
-            private fun performCheckAndLockApp(packageName: String) {
-                LoggingUtil.debug(TAG, "performCheckAndLockApp", "CHECKING: Is $packageName locked?")
-
-                // Skip if a challenge is already in progress
-                if (SessionManager.isChallengeInProgress()) {
-                    LoggingUtil.debug(TAG, "performCheckAndLockApp", "SKIPPING: Challenge already in progress")
-                    return
-                }
-
-                // Skip our own app
-                if (packageName == "com.example.strooplocker") {
-                    LoggingUtil.debug(TAG, "performCheckAndLockApp", "SKIPPING: This is our own app")
-                    return
-                }
-
-                CoroutineScope(Dispatchers.IO).launch {
-                    try {
-                        val repository = LockedAppsRepository(
-                            LockedAppDatabase.getInstance(this@StroopAccessibilityService).lockedAppDao()
-                        )
-
-                        val lockedApps = repository.getAllLockedApps()
-                        LoggingUtil.debug(TAG, "performCheckAndLockApp", "LOCKED APPS: ${lockedApps.joinToString()}")
-
-                        val isLocked = lockedApps.contains(packageName)
-
-                        LoggingUtil.debug(TAG, "performCheckAndLockApp", "APP STATUS: $packageName | Locked: $isLocked")
-
-                        // Only launch challenge if app is locked
-                        if (isLocked) {
-                            // Start the challenge in SessionManager
-                            val challengeStarted = SessionManager.startChallenge(packageName)
-
-                            if (challengeStarted) {
-                                withContext(Dispatchers.Main) {
-                                    LoggingUtil.debug(TAG, "performCheckAndLockApp", "LAUNCHING CHALLENGE for: $packageName")
-
-                                    // Show toast for debugging
-                                    Toast.makeText(
-                                        applicationContext,
-                                        getString(R.string.toast_challenge_for, packageName),
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-
-                                    val lockIntent = Intent(this@StroopAccessibilityService, StroopLockActivity::class.java).apply {
-                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                        addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                                        putExtra(EXTRA_LOCKED_PACKAGE, packageName)
-                                    }
-                                    startActivity(lockIntent)
-                                }
-                            } else {
-                                LoggingUtil.debug(TAG, "performCheckAndLockApp", "SKIPPING: Could not start challenge for $packageName")
-                            }
-                        } else {
-                            LoggingUtil.debug(TAG, "performCheckAndLockApp", "SKIPPING: $packageName is not locked")
-                        }
-                    } catch (e: Exception) {
-                        LoggingUtil.error(TAG, "performCheckAndLockApp", "ERROR checking locked status", e)
-                        SessionManager.resetChallenge()
-                    }
-                }
             }
         }
     }
