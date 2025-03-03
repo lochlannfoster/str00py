@@ -6,12 +6,10 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mockito.MockedStatic
+import org.mockito.Mock
 import org.mockito.Mockito
 import org.mockito.junit.MockitoJUnitRunner
 import org.junit.Assert.*
-import org.mockito.Mock
-import org.mockito.MockitoAnnotations
 import org.mockito.Mockito.doNothing
 
 /**
@@ -19,9 +17,6 @@ import org.mockito.Mockito.doNothing
  *
  * These tests verify the SessionManager's ability to track challenges,
  * manage app sessions, and handle state transitions.
- *
- * We use comprehensive mocking to simulate Android's Handler and Looper
- * behavior without requiring an actual Android runtime.
  */
 @RunWith(MockitoJUnitRunner::class)
 class SessionManagerTest {
@@ -32,31 +27,17 @@ class SessionManagerTest {
     @Mock
     private lateinit var mockHandler: Handler
 
-    private lateinit var looperMock: MockedStatic<Looper>
-
     @Before
     fun setup() {
         // Initialize mocks
-        MockitoAnnotations.openMocks(this)
-
-        // Mock Looper to prevent real Looper initialization
-        looperMock = Mockito.mockStatic(Looper::class.java)
-        looperMock.`when`<Looper> { Looper.getMainLooper() }.thenReturn(null)
-
-        // Mock the removeCallbacksAndMessages method to do nothing
         doNothing().`when`(mockHandler).removeCallbacksAndMessages(null)
+        Mockito.`when`(mockHandler.postDelayed(Mockito.any(), Mockito.anyLong())).thenReturn(true)
 
         // Replace the handler in SessionManager with our mock
         SessionManager.replaceHandlerForTesting(mockHandler)
 
         // Reset SessionManager to a clean state before each test
         SessionManager.endAllSessions()
-    }
-
-    @After
-    fun tearDown() {
-        // Close the static mock
-        looperMock.close()
     }
 
     @Test
@@ -203,32 +184,27 @@ class SessionManagerTest {
             completedChallenges.contains(testPackage1))
         assertTrue("List should contain second package",
             completedChallenges.contains(testPackage2))
+    }
 
-        @Test
-        fun isChallengeCompleted_afterTimeout_returnsFalse() {
-            // Arrange
-            val packageName = "com.example.app1"
-            SessionManager.startChallenge(packageName)
-            SessionManager.completeChallenge(packageName)
-            assertTrue(SessionManager.isChallengeCompleted(packageName))
+    // Add the new timeout test as a separate method
+    @Test
+    fun isChallengeCompleted_afterTimeout_returnsFalse() {
+        // Arrange
+        SessionManager.startChallenge(testPackage1)
+        SessionManager.completeChallenge(testPackage1)
+        assertTrue(SessionManager.isChallengeCompleted(testPackage1))
 
-            // Mock System.currentTimeMillis to simulate passage of time
-            // This requires using a static mock for System, which is complicated
-            // Instead, we'll use reflection to modify the timestamp directly
-            val completedChallengesField = SessionManager::class.java.getDeclaredField("completedChallenges")
-            completedChallengesField.isAccessible = true
-            val completedChallenges = completedChallengesField.get(SessionManager) as MutableMap<String, Long>
+        // Use reflection to manipulate the internal state
+        val completedChallengesField = SessionManager::class.java.getDeclaredField("completedChallenges")
+        completedChallengesField.isAccessible = true
+        val completedChallenges = completedChallengesField.get(SessionManager) as MutableMap<String, Long>
 
-            // Set completion time to 6 seconds ago (beyond the 5 second timeout)
-            val sixSecondsAgo = System.currentTimeMillis() - 6000L
-            completedChallenges[packageName] = sixSecondsAgo
+        // Set the timestamp to 6 seconds ago (past the 5 second timeout)
+        val pastTimestamp = System.currentTimeMillis() - 6000L
+        completedChallenges[testPackage1] = pastTimestamp
 
-            // Act & Assert
-            assertFalse("Challenge should expire after timeout",
-                SessionManager.isChallengeCompleted(packageName))
-
-            // Verify it was removed from the map
-            assertEquals(0, completedChallenges.size)
-        }
+        // Act & Assert
+        assertFalse("Challenge should expire after timeout",
+            SessionManager.isChallengeCompleted(testPackage1))
     }
 }

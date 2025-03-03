@@ -45,7 +45,7 @@ class SessionManagerTimeoutTest {
 
         val completedChallengesField = SessionManager::class.java.getDeclaredField("completedChallenges")
         completedChallengesField.isAccessible = true
-        val completedChallenges = completedChallengesField.get(SessionManager) as MutableSet<String>
+        val completedChallenges = completedChallengesField.get(SessionManager) as MutableMap<String, Long>
         completedChallenges.clear()
     }
 
@@ -89,8 +89,6 @@ class SessionManagerTimeoutTest {
         verify(mockHandler, times(1)).removeCallbacksAndMessages(null)
     }
 
-    // This test can't work as written since we can't capture the runnable
-    // Let's simplify and just test that a challenge gets reset properly
     @Test
     fun resetChallenge_clearsState() {
         // Arrange - set initial state
@@ -108,29 +106,27 @@ class SessionManagerTimeoutTest {
 
     @Test
     fun sessionTimeout_expiresChallengeCompletion() {
-        // Arrange - set up the mocks and complete a challenge
-        val packageName = "com.example.testapp"
+        // Arrange
+        // Get access to the SESSION_TIMEOUT_MS constant via reflection
+        val timeoutField = SessionManager::class.java.getDeclaredField("SESSION_TIMEOUT_MS")
+        timeoutField.isAccessible = true
+        val timeout = timeoutField.get(null) as Long
 
-        // Use reflection to access the completedChallenges map
+        // Get access to the completedChallenges map
         val completedChallengesField = SessionManager::class.java.getDeclaredField("completedChallenges")
         completedChallengesField.isAccessible = true
         val completedChallenges = completedChallengesField.get(SessionManager) as MutableMap<String, Long>
 
-        // Add a completed challenge with a timestamp in the past
-        val timeoutMs = SessionManager::class.java.getDeclaredField("SESSION_TIMEOUT_MS")
-        timeoutMs.isAccessible = true
-        val sessionTimeout = timeoutMs.get(null) as Long
-
-        // Set completion time to just beyond the timeout
-        val expiredTime = System.currentTimeMillis() - (sessionTimeout + 100)
-        completedChallenges[packageName] = expiredTime
+        // Manually add a completed challenge with a timestamp just beyond the timeout
+        val expiredTime = System.currentTimeMillis() - (timeout + 100)
+        completedChallenges[testPackage] = expiredTime
 
         // Act & Assert
-        assertFalse("Challenge should be expired",
-            SessionManager.isChallengeCompleted(packageName))
+        assertFalse("Challenge should be expired after timeout",
+            SessionManager.isChallengeCompleted(testPackage))
 
-        // Verify the challenge was removed from completed list
-        assertTrue("Expired challenge should be removed",
+        // The map should now be empty as the expired entry should be removed
+        assertTrue("Expired challenge should be removed from map",
             completedChallenges.isEmpty())
     }
 }

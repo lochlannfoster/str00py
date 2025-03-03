@@ -1,4 +1,3 @@
-// app/src/main/java/com/example/strooplocker/SessionManager.kt
 package com.example.strooplocker
 
 import android.os.Handler
@@ -14,8 +13,11 @@ import android.util.Log
 object SessionManager {
     private const val TAG = "SessionManager"
 
-    // Track completed challenge packages
-    private val completedChallenges = mutableMapOf<String, Long>() // Map of package name to completion timestamp
+    // Add timeout value for sessions
+    private const val SESSION_TIMEOUT_MS = 5000L // 5 seconds timeout for sessions
+
+    // Track completed challenge packages with timestamps
+    private val completedChallenges = mutableMapOf<String, Long>()
 
     // Only track if a challenge is currently in progress to prevent overlapping challenges
     @Volatile
@@ -37,8 +39,6 @@ object SessionManager {
             Handler()
         }
     }
-
-    private const val SESSION_TIMEOUT_MS = 5000L // 5 seconds timeout for sessions
 
     /**
      * Testing method to replace the handler for unit testing.
@@ -180,11 +180,16 @@ object SessionManager {
             // Always end the session for the app we're leaving
             endSession(fromPackage)
 
-            // Important: If we're switching from one locked app to another,
-            // we want to enforce a new challenge
-            if (completedChallenges.contains(toPackage)) {
-                Log.d(TAG, "Detected switch between locked apps - forcing new challenge")
+            // Check if we're going to home screen or another system UI
+            val goingToHomeOrSystem = toPackage.contains("launcher") ||
+                    toPackage.contains("systemui") ||
+                    toPackage.contains("home")
+
+            if (!goingToHomeOrSystem) {
+                // If we're going to another app (not home/system),
+                // always force a new challenge for that app
                 completedChallenges.remove(toPackage)
+                Log.d(TAG, "Switching to another app - forcing new challenge for: $toPackage")
             }
         }
     }

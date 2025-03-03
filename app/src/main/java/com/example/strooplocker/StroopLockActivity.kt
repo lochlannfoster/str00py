@@ -586,7 +586,7 @@ class StroopLockActivity : AppCompatActivity() {
      * @return true if the challenge has been completed, false otherwise
      */
     private fun checkChallengeCompletion(packageName: String): Boolean {
-        // Only use SessionManager for challenge completion status
+        // Use SessionManager exclusively for challenge completion status
         return SessionManager.isChallengeCompleted(packageName)
     }
 
