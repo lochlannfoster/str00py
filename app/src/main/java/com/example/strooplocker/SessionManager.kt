@@ -144,7 +144,18 @@ object SessionManager {
      * @param packageName The package name to check
      * @return true if the challenge has been completed for this package and is still valid
      */
+
     fun isChallengeCompleted(packageName: String): Boolean {
+        // Debug logging
+        Log.d(TAG, "Checking if challenge for $packageName is completed")
+        Log.d(TAG, "Current completed challenges: ${completedChallenges.keys.joinToString()}")
+
+        // For debugging, always return false to force challenges
+        Log.d(TAG, "FORCING LOCK: Returning false for all completion checks")
+        return false
+
+        // Original code commented out for testing
+        /*
         // Check if we should force a periodic clearing of challenges
         checkForPeriodicClearing()
 
@@ -163,9 +174,8 @@ object SessionManager {
         }
 
         return true
-    }
-
-    /**
+        */
+    }/**
      * Periodically clears all challenges to ensure the app doesn't stay
      * unlocked for too long, even if the user keeps interacting with it.
      */
@@ -236,29 +246,25 @@ object SessionManager {
 
         // End session for previous app if it's different
         if (fromPackage != null) {
-            // Always end the session for the app we're leaving to maintain
-            // compatibility with existing tests and expectations
+            // Always end the session for the app we're leaving
             Log.d(TAG, "Ending session for app we're leaving: $fromPackage")
             endSession(fromPackage)
+        }
 
-            // If the destination app is locked, always clear any previous completion
-            // This guarantees a challenge when switching directly to any locked app
-            if (lockedApps.contains(toPackage)) {
-                Log.d(TAG, "Ensuring a fresh challenge for locked app we're entering: $toPackage")
-                endSession(toPackage)
-            }
+        // IMPORTANT FIX: If the destination app is locked, ALWAYS require a new challenge
+        if (lockedApps.contains(toPackage)) {
+            Log.d(TAG, "Ensuring a fresh challenge for locked app: $toPackage")
+            endSession(toPackage)
         }
 
         // Special home screen handling - end sessions when going home
         if (toPackage.contains("launcher") || toPackage.contains("home")) {
             Log.d(TAG, "Going to home screen - ending all active sessions")
-            // When going to home screen, end all active app sessions to ensure
-            // fresh challenges when reopening apps
+            // When going to home screen, end all active app sessions
             completedChallenges.clear()
             lastClearTime = System.currentTimeMillis()
         }
     }
-
     /**
      * Retrieves list of completed challenges.
      *

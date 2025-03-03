@@ -1,5 +1,3 @@
-// File: app/src/main/java/com/example/strooplocker/StroopAccessibilityService.kt
-
 package com.example.strooplocker
 
 import android.accessibilityservice.AccessibilityService
@@ -18,6 +16,7 @@ import com.example.strooplocker.data.LockedAppsRepository
 import com.example.strooplocker.utils.LoggingUtil
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -86,7 +85,7 @@ class StroopAccessibilityService : AccessibilityService() {
      */
     override fun onServiceConnected() {
         super.onServiceConnected()
-        LoggingUtil.debug(TAG, "onServiceConnected", "Configuring accessibility service")
+        Log.d(TAG, "onServiceConnected: ACCESSIBILITY SERVICE STARTING")
 
         try {
             serviceInfo = serviceInfo.apply {
@@ -96,15 +95,17 @@ class StroopAccessibilityService : AccessibilityService() {
                 flags = AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS or
                         AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
             }
-            LoggingUtil.debug(TAG, "onServiceConnected", "Service connected and configured successfully!")
+            Log.d(TAG, "ACCESSIBILITY SERVICE CONNECTED AND ACTIVE!")
             isServiceActive = true
 
             // Reset all session and challenge states
             SessionManager.endAllSessions()
+            Log.d(TAG, "All sessions cleared")
 
             // Initialize locked apps cache
             CoroutineScope(Dispatchers.IO).launch {
                 refreshLockedAppsCache()
+                Log.d(TAG, "Initial locked apps: ${cachedLockedApps.joinToString()}")
             }
 
             // Register screen event receiver
@@ -117,7 +118,8 @@ class StroopAccessibilityService : AccessibilityService() {
 
             // Show a toast to confirm service is running
             Handler(Looper.getMainLooper()).post {
-                Toast.makeText(applicationContext, getString(R.string.toast_service_activated), Toast.LENGTH_SHORT).show()
+                Toast.makeText(applicationContext, "STROOP LOCK SERVICE ACTIVATED", Toast.LENGTH_LONG).show()
+                Log.d(TAG, "Service activation toast shown")
             }
         } catch (e: Exception) {
             LoggingUtil.error(TAG, "onServiceConnected", "Error configuring accessibility service", e)
@@ -236,29 +238,37 @@ class StroopAccessibilityService : AccessibilityService() {
      * @param previousPackage The previous package name, if this is an app switch
      */
     private fun performCheckAndLockApp(packageName: String, previousPackage: String? = null) {
-        LoggingUtil.debug(TAG, "performCheckAndLockApp", "CHECKING: Is $packageName locked?")
+        Log.d(TAG, "LOCK CHECK STARTED: Is $packageName locked?")
+
+        // Debug: Log accessibility service status
+        Log.d(TAG, "Service active: $isServiceActive")
 
         // Skip if a challenge is already in progress
         if (SessionManager.isChallengeInProgress()) {
-            LoggingUtil.debug(TAG, "performCheckAndLockApp", "SKIPPING: Challenge already in progress")
+            Log.d(TAG, "SKIPPING LOCK: Challenge already in progress")
             return
         }
 
         // Skip our own app
         if (packageName == "com.example.strooplocker") {
-            LoggingUtil.debug(TAG, "performCheckAndLockApp", "SKIPPING: This is our own app")
+            Log.d(TAG, "SKIPPING LOCK: This is our own app")
             return
         }
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                // Ensure we have up-to-date locked apps list
-                ensureLockedAppsCacheValid()
+                // Force refresh the locked apps cache to ensure it's up-to-date
+                Log.d(TAG, "Refreshing locked apps cache (old cache: ${cachedLockedApps.joinToString()})")
+                refreshLockedAppsCache()
+                Log.d(TAG, "Cache refreshed: ${cachedLockedApps.joinToString()}")
 
-                // Log current state before making any decisions
-                LoggingUtil.debug(TAG, "performCheckAndLockApp", "LOCKED APPS: ${cachedLockedApps.joinToString()}")
-                LoggingUtil.debug(TAG, "performCheckAndLockApp", "COMPLETED CHALLENGES: ${SessionManager.getCompletedChallenges().joinToString()}")
-                LoggingUtil.debug(TAG, "performCheckAndLockApp", "Is challenge for $packageName already completed? ${SessionManager.isChallengeCompleted(packageName)}")
+                // Check if this app is in the locked list
+                val isLocked = cachedLockedApps.contains(packageName)
+                Log.d(TAG, "Is $packageName in locked list? $isLocked")
+
+                // Check if a challenge has been completed for this app
+                val hasCompletedChallenge = SessionManager.isChallengeCompleted(packageName)
+                Log.d(TAG, "Has $packageName completed a challenge? $hasCompletedChallenge")
 
                 // Handle app switch with locked apps information if this is from an app switch
                 if (previousPackage != null) {
@@ -266,27 +276,43 @@ class StroopAccessibilityService : AccessibilityService() {
                     SessionManager.handleAppSwitch(previousPackage, packageName, cachedLockedApps)
                 }
 
-                // After the switch is handled, check again if this app needs a challenge
-                val isLocked = cachedLockedApps.contains(packageName)
-                val hasCompletedChallenge = SessionManager.isChallengeCompleted(packageName)
+                // Force clearing any completion status for debugging
+                if (isLocked) {
+                    Log.d(TAG, "DEBUG FORCING: Clearing any existing completion status for $packageName")
+                    SessionManager.endSession(packageName)
+                    // Double-check it worked
+                    val nowHasCompletedChallenge = SessionManager.isChallengeCompleted(packageName)
+                    Log.d(TAG, "After forcing: Challenge completed status is now: $nowHasCompletedChallenge")
+                }
 
-                LoggingUtil.debug(TAG, "performCheckAndLockApp", "FINAL APP STATUS: $packageName | Locked: $isLocked | Challenge completed: $hasCompletedChallenge")
+                // After the switch is handled, check again if this app needs a challenge
+                val shouldShowLock = isLocked && !SessionManager.isChallengeCompleted(packageName)
+
+                Log.d(TAG, "FINAL APP STATUS: $packageName | Locked: $isLocked | Should show lock: $shouldShowLock")
 
                 // Only launch challenge if app is locked and not recently completed
-                if (isLocked && !hasCompletedChallenge) {
+                if (shouldShowLock) {
                     // Start the challenge in SessionManager
                     val challengeStarted = SessionManager.startChallenge(packageName)
+                    Log.d(TAG, "Attempt to start challenge: $challengeStarted")
 
                     if (challengeStarted) {
                         withContext(Dispatchers.Main) {
-                            LoggingUtil.debug(TAG, "performCheckAndLockApp", "LAUNCHING CHALLENGE for: $packageName")
+                            Log.d(TAG, "LAUNCHING LOCK CHALLENGE for: $packageName")
 
                             // Show toast for debugging
                             Toast.makeText(
                                 applicationContext,
-                                getString(R.string.toast_challenge_for, packageName),
-                                Toast.LENGTH_SHORT
+                                "LAUNCHING LOCK for: $packageName",
+                                Toast.LENGTH_LONG
                             ).show()
+
+                            // Force short delay to ensure toast is visible
+                            try {
+                                delay(500)
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Delay error", e)
+                            }
 
                             val lockIntent = Intent(this@StroopAccessibilityService, StroopLockActivity::class.java).apply {
                                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -294,20 +320,24 @@ class StroopAccessibilityService : AccessibilityService() {
                                 putExtra(EXTRA_LOCKED_PACKAGE, packageName)
                             }
                             startActivity(lockIntent)
+
+                            // Debug: confirm intent was sent
+                            Log.d(TAG, "Lock intent for $packageName sent successfully")
                         }
                     } else {
-                        LoggingUtil.debug(TAG, "performCheckAndLockApp", "SKIPPING: Could not start challenge for $packageName")
+                        Log.d(TAG, "ERROR: Could not start challenge for $packageName")
                     }
                 } else {
                     val reason = when {
                         !isLocked -> "not locked"
-                        hasCompletedChallenge -> "challenge already completed"
+                        SessionManager.isChallengeCompleted(packageName) -> "challenge already completed"
                         else -> "unknown reason"
                     }
-                    LoggingUtil.debug(TAG, "performCheckAndLockApp", "SKIPPING: $packageName ($reason)")
+                    Log.d(TAG, "NOT SHOWING LOCK: $packageName ($reason)")
                 }
             } catch (e: Exception) {
-                LoggingUtil.error(TAG, "performCheckAndLockApp", "ERROR checking locked status", e)
+                Log.e(TAG, "ERROR checking locked status for $packageName", e)
+                e.printStackTrace()
                 SessionManager.resetChallenge()
             }
         }
