@@ -129,13 +129,16 @@ class StroopAccessibilityService : AccessibilityService() {
 
                 // End session for previous app
                 if (currentForegroundPackage != null) {
+                    // Added additional explicit logging
+                    LoggingUtil.debug(TAG, "onAccessibilityEvent", "Handling app switch explicitly")
                     SessionManager.handleAppSwitch(currentForegroundPackage, packageName)
                 }
 
                 // Update current package
                 currentForegroundPackage = packageName
 
-                // Check and lock the new app
+                // Always check and lock the new app, regardless of previous state
+                LoggingUtil.debug(TAG, "onAccessibilityEvent", "Checking new app regardless of previous state")
                 performCheckAndLockApp(packageName)
             }
             // Same app (new activity)

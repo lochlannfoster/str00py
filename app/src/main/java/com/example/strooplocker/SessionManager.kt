@@ -164,13 +164,27 @@ object SessionManager {
      * @param fromPackage Previous package
      * @param toPackage New package
      */
+    /**
+     * Handles app switch events to manage sessions.
+     *
+     * @param fromPackage Previous package
+     * @param toPackage New package
+     */
     @Synchronized
     fun handleAppSwitch(fromPackage: String?, toPackage: String) {
         Log.d(TAG, "App switch: $fromPackage -> $toPackage")
 
         // End session for previous app if it's different
         if (fromPackage != null && fromPackage != toPackage) {
+            // Always end the session for the app we're leaving
             endSession(fromPackage)
+
+            // Important: If we're switching from one locked app to another,
+            // we want to enforce a new challenge
+            if (completedChallenges.contains(toPackage)) {
+                Log.d(TAG, "Detected switch between locked apps - forcing new challenge")
+                completedChallenges.remove(toPackage)
+            }
         }
     }
 
