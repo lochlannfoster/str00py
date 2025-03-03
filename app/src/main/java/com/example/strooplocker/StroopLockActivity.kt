@@ -207,7 +207,7 @@ class StroopLockActivity : AppCompatActivity() {
             Log.d(TAG, "Enable accessibility button clicked")
             showPermissionsGuide()
         }
-    
+
 
         // Setup exit button with debug capability
         findViewById<Button>(R.id.exitButton)?.apply {

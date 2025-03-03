@@ -169,13 +169,24 @@ object SessionManager {
 
         // If expired, remove it and return false
         if (!isValid) {
-            Log.d(TAG, "Challenge for $packageName has expired (age: ${now - timestamp}ms, timeout: ${timeoutToUse}ms)")
-            SessionDebugger.logSessionStatus(packageName, false, "timeout: ${now - timestamp}ms > ${timeoutToUse}ms")
+            Log.d(
+                TAG,
+                "Challenge for $packageName has expired (age: ${now - timestamp}ms, timeout: ${timeoutToUse}ms)"
+            )
+            SessionDebugger.logSessionStatus(
+                packageName,
+                false,
+                "timeout: ${now - timestamp}ms > ${timeoutToUse}ms"
+            )
             completedChallenges.remove(packageName)
             return false
         }
 
-        SessionDebugger.logSessionStatus(packageName, true, "within timeout: ${now - timestamp}ms < ${timeoutToUse}ms")
+        SessionDebugger.logSessionStatus(
+            packageName,
+            true,
+            "within timeout: ${now - timestamp}ms < ${timeoutToUse}ms"
+        )
         return true
     }
 
@@ -224,8 +235,10 @@ object SessionManager {
     @Synchronized
     fun endAllSessions() {
         Log.d(TAG, "Ending all sessions")
-        SessionDebugger.logEvent("GLOBAL", "ALL_SESSIONS_ENDED",
-            "cleared ${completedChallenges.size} sessions")
+        SessionDebugger.logEvent(
+            "GLOBAL", "ALL_SESSIONS_ENDED",
+            "cleared ${completedChallenges.size} sessions"
+        )
         completedChallenges.clear()
         resetChallenge()
         lastClearTime = System.currentTimeMillis()
@@ -242,7 +255,7 @@ object SessionManager {
     @Synchronized
     fun handleAppSwitch(fromPackage: String?, toPackage: String, lockedApps: List<String> = emptyList()) {
         Log.d(TAG, "APP_SWITCH: From $fromPackage -> To $toPackage")
-        SessionDebugger.logAppSwitch(fromPackage, toPackage)
+        Log.d(TAG, "APP_SWITCH: Locked apps list: ${lockedApps.joinToString()}")
 
         // Check if we should force a periodic clearing of challenges
         checkForPeriodicClearing()
@@ -253,12 +266,14 @@ object SessionManager {
             return
         }
 
-        // Special home screen handling - end sessions when going home
+        // Special home screen handling - MODIFIED: Only end session for the FROM app
         if (isHomeScreen(toPackage)) {
-            Log.d(TAG, "Going to home screen - ending all active sessions")
-            // When going to home screen, end all active app sessions
-            completedChallenges.clear()
-            lastClearTime = System.currentTimeMillis()
+            Log.d(TAG, "Going to home screen - ending only the FROM app session")
+            // When going to home screen, only end the session for the app we're leaving
+            if (fromPackage != null) {
+                endSession(fromPackage)
+                Log.d(TAG, "Ended session for $fromPackage when going to home screen")
+            }
             return
         }
 
@@ -273,19 +288,21 @@ object SessionManager {
             Log.d(TAG, "Ensuring a fresh challenge for locked app: $toPackage")
             endSession(toPackage)
         }
-    }
 
-    // Add a helper method to identify home screen packages
-    private fun isHomeScreen(packageName: String): Boolean {
-        return packageName.contains("launcher") ||
-                packageName.contains("home") ||
-                packageName == "com.google.android.apps.nexuslauncher" ||
-                packageName == "com.android.launcher"
+
+        // Add a helper method to identify home screen packages
+        private fun isHomeScreen(packageName: String): Boolean {
+            return packageName.contains("launcher") ||
+                    packageName.contains("home") ||
+                    packageName == "com.google.android.apps.nexuslauncher" ||
+                    packageName == "com.android.launcher"
+        }
+
+        /**
+         * Retrieves list of completed challenges.
+         *
+         * @return List of package names with completed challenges
+         */
+        fun getCompletedChallenges(): List<String> = completedChallenges.keys.toList()
     }
-    /**
-     * Retrieves list of completed challenges.
-     *
-     * @return List of package names with completed challenges
-     */
-    fun getCompletedChallenges(): List<String> = completedChallenges.keys.toList()
 }
