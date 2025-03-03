@@ -149,8 +149,8 @@ object SessionManager {
 
     fun isChallengeCompleted(packageName: String): Boolean {
         // Debug logging
-        Log.d(TAG, "Checking if challenge for $packageName is completed")
-        Log.d(TAG, "Current completed challenges: ${completedChallenges.keys.joinToString()}")
+        Log.d(TAG, "CHECK_LOCK: Checking if challenge for $packageName is completed")
+        Log.d(TAG, "CHECK_LOCK: Current completed challenges: ${completedChallenges.keys.joinToString()}")
 
         // Check if we should force a periodic clearing of challenges
         checkForPeriodicClearing()
@@ -230,7 +230,8 @@ object SessionManager {
      */
     @Synchronized
     fun handleAppSwitch(fromPackage: String?, toPackage: String, lockedApps: List<String> = emptyList()) {
-        Log.d(TAG, "App switch: $fromPackage -> $toPackage")
+        Log.d(TAG, "APP_SWITCH: From $fromPackage -> To $toPackage")
+        Log.d(TAG, "APP_SWITCH: Locked apps list: ${lockedApps.joinToString()}")
 
         // Check if we should force a periodic clearing of challenges
         checkForPeriodicClearing()

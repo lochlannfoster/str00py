@@ -238,7 +238,7 @@ class StroopAccessibilityService : AccessibilityService() {
      * @param previousPackage The previous package name, if this is an app switch
      */
     private fun performCheckAndLockApp(packageName: String, previousPackage: String? = null) {
-        Log.d(TAG, "LOCK CHECK STARTED: Is $packageName locked?")
+        Log.d(TAG, "LOCK_CHECK: Starting for $packageName (previous: $previousPackage)")
 
         // Debug: Log accessibility service status
         Log.d(TAG, "Service active: $isServiceActive")
@@ -288,7 +288,7 @@ class StroopAccessibilityService : AccessibilityService() {
                 // After the switch is handled, check again if this app needs a challenge
                 val shouldShowLock = isLocked && !SessionManager.isChallengeCompleted(packageName)
 
-                Log.d(TAG, "FINAL APP STATUS: $packageName | Locked: $isLocked | Should show lock: $shouldShowLock")
+                Log.d(TAG, "LOCK_DECISION: Package=$packageName, isLocked=$isLocked, hasCompletedChallenge=$hasCompletedChallenge, shouldShowLock=$shouldShowLock")
 
                 // Only launch challenge if app is locked and not recently completed
                 if (shouldShowLock) {
