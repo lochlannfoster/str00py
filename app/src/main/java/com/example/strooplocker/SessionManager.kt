@@ -1,11 +1,9 @@
-// app/src/main/java/com/example/strooplocker/SessionManager.kt
 package com.example.strooplocker
 
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import com.example.strooplocker.utils.SessionDebugger
-
 
 /**
  * SessionManager manages app session states and challenge tracking.
@@ -150,9 +148,6 @@ object SessionManager {
      * @param packageName The package name to check
      * @return true if the challenge has been completed for this package and is still valid
      */
-
-// app/src/main/java/com/example/strooplocker/SessionManager.kt
-
     fun isChallengeCompleted(packageName: String): Boolean {
         // Debug logging
         Log.d(TAG, "CHECK_LOCK: Checking if challenge for $packageName is completed")
@@ -251,7 +246,6 @@ object SessionManager {
      * @param toPackage New package
      * @param lockedApps List of currently locked app package names
      */
-
     @Synchronized
     fun handleAppSwitch(fromPackage: String?, toPackage: String, lockedApps: List<String> = emptyList()) {
         Log.d(TAG, "APP_SWITCH: From $fromPackage -> To $toPackage")
@@ -288,21 +282,25 @@ object SessionManager {
             Log.d(TAG, "Ensuring a fresh challenge for locked app: $toPackage")
             endSession(toPackage)
         }
-
-
-        // Add a helper method to identify home screen packages
-        private fun isHomeScreen(packageName: String): Boolean {
-            return packageName.contains("launcher") ||
-                    packageName.contains("home") ||
-                    packageName == "com.google.android.apps.nexuslauncher" ||
-                    packageName == "com.android.launcher"
-        }
-
-        /**
-         * Retrieves list of completed challenges.
-         *
-         * @return List of package names with completed challenges
-         */
-        fun getCompletedChallenges(): List<String> = completedChallenges.keys.toList()
     }
+
+    /**
+     * Identifies home screen launcher packages.
+     *
+     * @param packageName The package name to check
+     * @return true if the package is likely a home screen launcher
+     */
+    fun isHomeScreen(packageName: String): Boolean {
+        return packageName.contains("launcher") ||
+                packageName.contains("home") ||
+                packageName == "com.google.android.apps.nexuslauncher" ||
+                packageName == "com.android.launcher"
+    }
+
+    /**
+     * Retrieves list of completed challenges.
+     *
+     * @return List of package names with completed challenges
+     */
+    fun getCompletedChallenges(): List<String> = completedChallenges.keys.toList()
 }

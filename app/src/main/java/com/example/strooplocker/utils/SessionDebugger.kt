@@ -1,4 +1,3 @@
-// app/src/main/java/com/example/strooplocker/utils/SessionDebugger.kt
 package com.example.strooplocker.utils
 
 import android.util.Log
