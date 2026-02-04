@@ -63,4 +63,30 @@
 
     <!-- Button states -->
     <string name="all_permissions_ok">All Permissions OK</string>
+
+    <!-- Settings screen -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_challenge_timeout">Challenge Timeout (seconds)</string>
+    <string name="settings_challenge_timeout_desc">How long until challenge auto-closes</string>
+    <string name="settings_zero_infinite">0 = infinite</string>
+    <string name="settings_session_duration">Session Duration (seconds)</string>
+    <string name="settings_session_duration_desc">How long until session expires</string>
+    <string name="settings_zero_until_leave">0 = until you leave the app</string>
+    <string name="settings_challenges_required">Challenges Required</string>
+    <string name="settings_challenges_required_desc">Correct answers needed to unlock</string>
+    <string name="settings_sound">Sound on wrong answer</string>
+    <string name="settings_vibration">Vibration on wrong answer</string>
+    <string name="settings_theme">Theme</string>
+    <string name="settings_master_disable">Master Disable</string>
+    <string name="settings_master_disable_desc">Temporarily disable all app locking. Protected by Stroop challenge.</string>
+    <string-array name="theme_options">
+        <item>System Default</item>
+        <item>Light</item>
+        <item>Dark</item>
+    </string-array>
+    <string-array name="theme_values">
+        <item>system</item>
+        <item>light</item>
+        <item>dark</item>
+    </string-array>
 </resources>

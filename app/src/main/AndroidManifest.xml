@@ -41,6 +41,11 @@
             android:name=".StroopChallengeActivity"
             android:exported="false" />
 
+        <!-- Settings Activity -->
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false" />
+
         <!-- Accessibility Service -->
         <service
             android:name=".StroopAccessibilityService"
