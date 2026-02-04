@@ -4,12 +4,17 @@ package com.example.strooplocker
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Intent
+import android.content.pm.ServiceInfo
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.widget.Toast
+import androidx.core.app.NotificationCompat
 import com.example.strooplocker.data.LockedAppDatabase
 import com.example.strooplocker.data.LockedAppsRepository
 import com.example.strooplocker.utils.LoggingUtil
@@ -62,6 +67,9 @@ class StroopAccessibilityService : AccessibilityService() {
             }
             LoggingUtil.debug(TAG, "onServiceConnected", "Service connected and configured successfully!")
             isServiceActive = true
+
+            // Show persistent notification
+            showPersistentNotification()
 
             // Reset all session and challenge states
             SessionManager.endAllSessions()
@@ -232,6 +240,56 @@ class StroopAccessibilityService : AccessibilityService() {
         super.onDestroy()
         LoggingUtil.debug(TAG, "onDestroy", "Service destroyed")
         isServiceActive = false
+        hidePersistentNotification()
         SessionManager.endAllSessions()
+    }
+
+    /**
+     * Creates the notification channel for the persistent notification.
+     * Required for Android O (API 26) and above.
+     */
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                "str00py_service",
+                "str00py Active",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "Shows when str00py is protecting your apps"
+                setShowBadge(false)
+            }
+            val notificationManager = getSystemService(NotificationManager::class.java)
+            notificationManager.createNotificationChannel(channel)
+        }
+    }
+
+    /**
+     * Shows a persistent notification indicating the service is active.
+     * This makes the service a foreground service, which helps prevent
+     * the system from killing it.
+     */
+    private fun showPersistentNotification() {
+        createNotificationChannel()
+
+        val notification = NotificationCompat.Builder(this, "str00py_service")
+            .setContentTitle(getString(R.string.notification_title))
+            .setContentText(getString(R.string.notification_text))
+            .setSmallIcon(R.drawable.ic_lock)
+            .setOngoing(true)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .build()
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(1, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+        } else {
+            startForeground(1, notification)
+        }
+    }
+
+    /**
+     * Hides the persistent notification and stops the foreground service.
+     */
+    private fun hidePersistentNotification() {
+        stopForeground(STOP_FOREGROUND_REMOVE)
     }
 }

@@ -83,6 +83,11 @@
     <string name="settings_theme">Theme</string>
     <string name="settings_master_disable">Master Disable</string>
     <string name="settings_master_disable_desc">Temporarily disable all app locking. Protected by Stroop challenge.</string>
+
+    <!-- Notification strings -->
+    <string name="notification_title">str00py is active</string>
+    <string name="notification_text">Protecting your selected apps</string>
+
     <string-array name="theme_options">
         <item>System Default</item>
         <item>Light</item>
