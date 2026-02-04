@@ -398,6 +398,8 @@ class StroopLockActivity : AppCompatActivity() {
             handleLockedApp(lockedPackage)
         } else {
             Log.d(TAG, "No locked package provided in the intent.")
+            // Show app selection button in main screen mode
+            findViewById<Button>(R.id.selectAppButton)?.visibility = View.VISIBLE
             // Initialize progress tracking for direct app launch (testing/demo)
             currentChallengeCount = 0
             requiredChallenges = settingsManager.challengesRequired
@@ -414,6 +416,9 @@ class StroopLockActivity : AppCompatActivity() {
      */
     private fun handleLockedApp(packageName: String) {
         Log.d(TAG, "Handling locked app for package: $packageName")
+
+        // Hide app selection button during challenge (per design spec)
+        findViewById<Button>(R.id.selectAppButton)?.visibility = View.GONE
 
         // Launch locked app if challenge already completed, otherwise start challenge
         if (checkChallengeCompletion(packageName)) {
