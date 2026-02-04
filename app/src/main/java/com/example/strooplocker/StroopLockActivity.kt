@@ -62,6 +62,10 @@ class StroopLockActivity : AppCompatActivity() {
     private var correctColor: String? = null
     private var packageToLaunch: String? = null
 
+    // Feedback managers
+    private lateinit var feedbackManager: FeedbackManager
+    private lateinit var settingsManager: SettingsManager
+
     /**
      * Initializes the activity, sets up UI components and event handlers,
      * and checks necessary permissions.
@@ -69,6 +73,10 @@ class StroopLockActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_stroop_lock)
+
+        // Initialize settings and feedback managers
+        settingsManager = SettingsManager.getInstance(this)
+        feedbackManager = FeedbackManager(this, settingsManager)
 
         // Register for Activity Results to handle permission request callbacks
         registerActivityResultLaunchers()
@@ -597,6 +605,9 @@ class StroopLockActivity : AppCompatActivity() {
             // Incorrect answer
             Log.d(TAG, "Incorrect answer: $selectedColor, expected: $correctColor")
             Toast.makeText(this, getString(R.string.incorrect_answer), Toast.LENGTH_SHORT).show()
+
+            // Play wrong answer feedback (shake, optional vibration, optional sound)
+            feedbackManager.playWrongAnswerFeedback(findViewById(R.id.rootLayout))
 
             // Generate a new challenge as per the user stories
             generateChallenge()
