@@ -21,7 +21,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.core.content.ContextCompat
-import android.graphics.Color
 
 /**
  * Data class to hold app information for display and filtering.
@@ -295,12 +294,20 @@ class SelectAppsActivity : AppCompatActivity() {
         override fun onBindViewHolder(holder: AppViewHolder, position: Int) {
             val appInfo = apps[position]
 
+            val context = holder.itemView.context
             holder.appName.text = appInfo.appName
             holder.appIcon.setImageDrawable(appInfo.icon)
-            holder.lockStatus.text = if (appInfo.isLocked) "Locked" else "Unlocked"
+            holder.lockStatus.text = context.getString(
+                if (appInfo.isLocked) R.string.app_status_locked else R.string.app_status_unlocked
+            )
 
-            // Set text color based on lock status
-            holder.lockStatus.setTextColor(if (appInfo.isLocked) Color.GREEN else Color.RED)
+            // Set text color based on lock status (use resource colors)
+            holder.lockStatus.setTextColor(
+                ContextCompat.getColor(
+                    context,
+                    if (appInfo.isLocked) R.color.locked_green else R.color.unlocked_gray
+                )
+            )
 
             holder.itemView.setOnClickListener {
                 onAppClick(appInfo)

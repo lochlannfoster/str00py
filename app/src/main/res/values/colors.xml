@@ -21,6 +21,10 @@
     <!-- Warning/danger color for master disable -->
     <color name="warning_red">#FF0000</color>
 
+    <!-- App lock status colors -->
+    <color name="locked_green">#4CAF50</color>
+    <color name="unlocked_gray">#757575</color>
+
     <!-- Button styling for challenge -->
     <color name="challenge_button_background">#E0E0E0</color>
     <color name="challenge_text_outline">#000000</color>
