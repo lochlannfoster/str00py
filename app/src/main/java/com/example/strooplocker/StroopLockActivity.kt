@@ -148,12 +148,22 @@ class StroopLockActivity : AppCompatActivity() {
 
     /**
      * Updates permission status when the activity resumes.
-     * This ensures the UI reflects the current permission state.
+     * This ensures the UI reflects the current permission state
+     * and prompts for accessibility if not enabled.
      */
     override fun onResume() {
         super.onResume()
-        // Refresh permission status whenever the activity resumes
+        checkAccessibilityPermission()
         updatePermissionStatus()
+    }
+
+    /**
+     * Checks if accessibility permission is enabled and prompts if not.
+     */
+    private fun checkAccessibilityPermission() {
+        if (!isAccessibilityServiceEnabled()) {
+            showAccessibilityInstructions()
+        }
     }
 
     /**
@@ -225,7 +235,7 @@ class StroopLockActivity : AppCompatActivity() {
 
     /**
      * Checks if required permissions are granted and requests them if needed.
-     * Shows first-time setup dialog on first launch.
+     * Simplified to always check accessibility permission on every call.
      */
     private fun checkAndRequestPermissions() {
         Log.d(TAG, "Checking app permissions and setup status")
@@ -234,39 +244,13 @@ class StroopLockActivity : AppCompatActivity() {
         if (intent.getBooleanExtra("test_mode", false)) {
             Log.d(TAG, "Test mode detected, skipping permission checks")
             updatePermissionStatus()
-            generateChallenge() // Generate a sample challenge for testing
+            generateChallenge()
             return
         }
 
-        // Rest of the method remains the same
-        val prefs = getSharedPreferences("stroop_prefs", Context.MODE_PRIVATE)
-        val isFirstLaunch = prefs.getBoolean("is_first_launch", true)
-
-        if (isFirstLaunch) {
-            // Show initial setup dialog
-            showWelcomeDialog()
-
-            // Mark that first launch has been done
-            prefs.edit().putBoolean("is_first_launch", false).apply()
-        } else {
-            // Just update UI based on current permission status
-            updatePermissionStatus()
-        }
-    }
-
-    /**
-     * Shows welcome dialog on first launch to explain the app's purpose
-     * and guide the user through the setup process.
-     */
-    private fun showWelcomeDialog() {
-        AlertDialog.Builder(this)
-            .setTitle(getString(R.string.dialog_welcome_title))
-            .setMessage(getString(R.string.dialog_welcome_message))
-            .setPositiveButton(getString(R.string.dialog_get_started)) { _, _ ->
-                showPermissionsGuide()
-            }
-            .setCancelable(false)
-            .show()
+        // Always check accessibility permission
+        checkAccessibilityPermission()
+        updatePermissionStatus()
     }
 
     /**
