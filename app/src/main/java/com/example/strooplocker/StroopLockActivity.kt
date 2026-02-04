@@ -72,6 +72,9 @@ class StroopLockActivity : AppCompatActivity() {
     private lateinit var feedbackManager: FeedbackManager
     private lateinit var settingsManager: SettingsManager
 
+    // Dialog tracking to prevent stacked dialogs
+    private var isAccessibilityDialogShowing = false
+
     /**
      * Initializes the activity, sets up UI components and event handlers,
      * and checks necessary permissions.
@@ -159,9 +162,10 @@ class StroopLockActivity : AppCompatActivity() {
 
     /**
      * Checks if accessibility permission is enabled and prompts if not.
+     * Only shows dialog if one isn't already showing.
      */
     private fun checkAccessibilityPermission() {
-        if (!isAccessibilityServiceEnabled()) {
+        if (!isAccessibilityServiceEnabled() && !isAccessibilityDialogShowing) {
             showAccessibilityInstructions()
         }
     }
@@ -310,8 +314,10 @@ class StroopLockActivity : AppCompatActivity() {
 
     /**
      * Shows instructions for enabling the accessibility service.
+     * Tracks dialog state to prevent stacked dialogs.
      */
     private fun showAccessibilityInstructions() {
+        isAccessibilityDialogShowing = true
         AlertDialog.Builder(this)
             .setTitle(getString(R.string.dialog_enable_accessibility_title))
             .setMessage(getString(R.string.dialog_enable_accessibility_message))
@@ -319,7 +325,10 @@ class StroopLockActivity : AppCompatActivity() {
                 val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
                 accessibilitySettingsLauncher.launch(intent)
             }
-            .setCancelable(false)
+            .setOnDismissListener {
+                isAccessibilityDialogShowing = false
+            }
+            .setCancelable(true)
             .show()
     }
 
