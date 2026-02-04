@@ -160,9 +160,23 @@ class StroopAccessibilityService : AccessibilityService() {
             return
         }
 
-        // Skip if this app has already completed a challenge
+        // Check if session completed but expired
+        val settingsManager = SettingsManager.getInstance(this)
+        val sessionDurationMs = settingsManager.sessionDuration * 1000L
+
         if (SessionManager.isChallengeCompleted(packageName)) {
-            LoggingUtil.debug(TAG, "performCheckAndLockApp", "SKIPPING: Challenge already completed for $packageName")
+            if (SessionManager.isSessionExpired(packageName, sessionDurationMs)) {
+                LoggingUtil.debug(TAG, "performCheckAndLockApp", "Session expired for $packageName, ending session")
+                SessionManager.endSession(packageName)
+            } else {
+                LoggingUtil.debug(TAG, "performCheckAndLockApp", "SKIPPING: Challenge already completed for $packageName")
+                return
+            }
+        }
+
+        // Check master disable
+        if (settingsManager.masterDisable) {
+            LoggingUtil.debug(TAG, "performCheckAndLockApp", "SKIPPING: Master disable is on")
             return
         }
 
