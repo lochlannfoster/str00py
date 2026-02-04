@@ -196,6 +196,7 @@ object SessionManager {
      * @param packageName The package name to check
      * @return The timestamp when the session started, or null if no session exists
      */
+    @Synchronized
     fun getSessionStartTime(packageName: String): Long? = sessionStartTimes[packageName]
 
     /**
