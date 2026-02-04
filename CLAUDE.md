@@ -93,6 +93,26 @@
 - Material Design Components
 - Kotlin Coroutines
 
+## Context7 MCP Integration
+
+Always use Context7 MCP when I need library/API documentation, code generation, setup or configuration steps without me having to explicitly ask.
+
+### Project Library References
+
+When working with these libraries, use Context7 with the specified library IDs:
+
+| Library | Context7 ID | Use For |
+|---------|-------------|---------|
+| AndroidX/Jetpack | `/websites/developer_android_jetpack_androidx` | Room, Lifecycle, ViewModel, LiveData |
+| Kotlin Coroutines | `/kotlin/kotlinx.coroutines` | Async operations, Flow, suspend functions |
+| Hilt DI | `/websites/dagger_dev_hilt` | Dependency injection setup, modules, scopes |
+| Material Components | `/material-components/material-components-android` | UI components, theming, Material Design |
+| Gradle | `/websites/gradle_current_userguide` | Build configuration, dependencies, tasks |
+| Mockito | `/mockito/mockito` | Unit testing, mocking, verification |
+| Kotlin Language | `/websites/kotlinlang` | Kotlin syntax, stdlib, best practices |
+
+**Example usage:** "Add Room database migration. Use library `/websites/developer_android_jetpack_androidx` for API and docs."
+
 ## When Working on This Project
 
 1. **Before modifying SessionManager:** Read existing tests in `SessionManagerTest.kt`
