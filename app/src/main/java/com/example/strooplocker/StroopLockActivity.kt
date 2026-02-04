@@ -41,7 +41,8 @@ class StroopLockActivity : AppCompatActivity() {
 
         // Set of packages that have completed challenges
         // Exposed so other classes can access this information
-        val completedChallenges = mutableSetOf<String>()
+        // Thread-safe for access from accessibility service
+        val completedChallenges: MutableSet<String> = java.util.Collections.synchronizedSet(mutableSetOf())
     }
 
     // UI elements for the challenge
@@ -367,7 +368,7 @@ class StroopLockActivity : AppCompatActivity() {
 
         // Update button text
         if (accessibilityEnabled && overlayPermissionGranted) {
-            enableAccessibilityButton.text = "All Permissions OK"
+            enableAccessibilityButton.text = getString(R.string.all_permissions_ok)
         } else {
             enableAccessibilityButton.text = getString(R.string.enable_accessibility)
         }
