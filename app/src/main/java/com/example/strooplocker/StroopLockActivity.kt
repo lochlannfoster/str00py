@@ -405,6 +405,10 @@ class StroopLockActivity : AppCompatActivity() {
             handleLockedApp(lockedPackage)
         } else {
             Log.d(TAG, "No locked package provided in the intent.")
+            // Initialize progress tracking for direct app launch (testing/demo)
+            currentChallengeCount = 0
+            requiredChallenges = settingsManager.challengesRequired
+            updateProgressIndicator()
             generateChallenge() // Generate a sample challenge for testing
         }
     }
