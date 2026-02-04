@@ -1,5 +1,4 @@
 *.iml
-/local.properties
 .idea
 .gradle/
 /build/
@@ -8,4 +7,12 @@
 /captures
 .externalNativeBuild
 .cxx
+
+# Local configuration (ensure coverage)
 local.properties
+/local.properties
+
+# Logs
+/log
+*.log
+logs/
