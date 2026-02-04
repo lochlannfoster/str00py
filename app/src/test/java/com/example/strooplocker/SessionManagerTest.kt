@@ -204,4 +204,92 @@ class SessionManagerTest {
         assertTrue("List should contain second package",
             completedChallenges.contains(testPackage2))
     }
+
+    @Test
+    fun completeChallenge_recordsSessionStartTime() {
+        // Arrange & Act
+        SessionManager.startChallenge(testPackage1)
+        SessionManager.completeChallenge(testPackage1)
+
+        // Assert
+        val sessionStartTime = SessionManager.getSessionStartTime(testPackage1)
+        assertNotNull("Session should track start time", sessionStartTime)
+        assertTrue("Session start time should be recent",
+            System.currentTimeMillis() - sessionStartTime!! < 1000)
+    }
+
+    @Test
+    fun isSessionExpired_returnsFalse_whenNoTimeout() {
+        // Arrange
+        SessionManager.startChallenge(testPackage1)
+        SessionManager.completeChallenge(testPackage1)
+
+        // Act & Assert - timeout of 0 means no timeout
+        assertFalse("Session should not expire when timeout is 0",
+            SessionManager.isSessionExpired(testPackage1, 0))
+    }
+
+    @Test
+    fun isSessionExpired_returnsTrue_whenNoSessionExists() {
+        // Act & Assert - no session for this package
+        assertTrue("Should return true when no session exists",
+            SessionManager.isSessionExpired(testPackage1, 1000))
+    }
+
+    @Test
+    fun isSessionExpired_returnsFalse_whenSessionIsRecent() {
+        // Arrange
+        SessionManager.startChallenge(testPackage1)
+        SessionManager.completeChallenge(testPackage1)
+
+        // Act & Assert - 1 hour timeout, session just started
+        assertFalse("Recent session should not be expired",
+            SessionManager.isSessionExpired(testPackage1, 3600000))
+    }
+
+    @Test
+    fun endSession_clearsSessionStartTime() {
+        // Arrange
+        SessionManager.startChallenge(testPackage1)
+        SessionManager.completeChallenge(testPackage1)
+        assertNotNull(SessionManager.getSessionStartTime(testPackage1))
+
+        // Act
+        SessionManager.endSession(testPackage1)
+
+        // Assert
+        assertNull("Session start time should be cleared after endSession",
+            SessionManager.getSessionStartTime(testPackage1))
+    }
+
+    @Test
+    fun endAllSessions_clearsAllSessionStartTimes() {
+        // Arrange
+        SessionManager.startChallenge(testPackage1)
+        SessionManager.completeChallenge(testPackage1)
+        SessionManager.startChallenge(testPackage2)
+        SessionManager.completeChallenge(testPackage2)
+        assertNotNull(SessionManager.getSessionStartTime(testPackage1))
+        assertNotNull(SessionManager.getSessionStartTime(testPackage2))
+
+        // Act
+        SessionManager.endAllSessions()
+
+        // Assert
+        assertNull("Session start time for package1 should be cleared",
+            SessionManager.getSessionStartTime(testPackage1))
+        assertNull("Session start time for package2 should be cleared",
+            SessionManager.getSessionStartTime(testPackage2))
+    }
+
+    @Test
+    fun isSessionExpired_returnsTrue_whenTimeoutExceeded() {
+        // Arrange - set session start time to 2 hours ago
+        val twoHoursAgo = System.currentTimeMillis() - 7200000L
+        SessionManager.setSessionStartTimeForTesting(testPackage1, twoHoursAgo)
+
+        // Act & Assert - 1 hour timeout should be exceeded
+        assertTrue("Session should be expired when timeout exceeded",
+            SessionManager.isSessionExpired(testPackage1, 3600000L))
+    }
 }

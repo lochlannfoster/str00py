@@ -17,6 +17,9 @@ object SessionManager {
     // Track completed challenge packages
     private val completedChallenges = mutableSetOf<String>()
 
+    // Track session start times for timeout support
+    private val sessionStartTimes = mutableMapOf<String, Long>()
+
     // Only track if a challenge is currently in progress to prevent overlapping challenges
     @Volatile
     private var challengeInProgress = false
@@ -89,6 +92,9 @@ object SessionManager {
         // Add to completed challenges set
         completedChallenges.add(packageName)
 
+        // Record session start time for timeout support
+        sessionStartTimes[packageName] = System.currentTimeMillis()
+
         timeoutHandler.removeCallbacksAndMessages(null)
     }
 
@@ -112,6 +118,7 @@ object SessionManager {
      * @param packageName The package name to check
      * @return true if the challenge has been completed for this package
      */
+    @Synchronized
     fun isChallengeCompleted(packageName: String): Boolean {
         return completedChallenges.contains(packageName)
     }
@@ -137,6 +144,7 @@ object SessionManager {
     fun endSession(packageName: String) {
         Log.d(TAG, "Ending session for: $packageName")
         completedChallenges.remove(packageName)
+        sessionStartTimes.remove(packageName)
     }
 
     /**
@@ -146,6 +154,7 @@ object SessionManager {
     fun endAllSessions() {
         Log.d(TAG, "Ending all sessions")
         completedChallenges.clear()
+        sessionStartTimes.clear()
         resetChallenge()
     }
 
@@ -178,5 +187,38 @@ object SessionManager {
      *
      * @return List of package names with completed challenges
      */
+    @Synchronized
     fun getCompletedChallenges(): List<String> = completedChallenges.toList()
+
+    /**
+     * Gets the session start time for a package.
+     *
+     * @param packageName The package name to check
+     * @return The timestamp when the session started, or null if no session exists
+     */
+    fun getSessionStartTime(packageName: String): Long? = sessionStartTimes[packageName]
+
+    /**
+     * Checks if a session has expired based on the given timeout.
+     *
+     * @param packageName The package name to check
+     * @param timeoutMs The timeout in milliseconds (0 means no timeout)
+     * @return true if the session has expired, false otherwise
+     */
+    @Synchronized
+    fun isSessionExpired(packageName: String, timeoutMs: Long): Boolean {
+        if (timeoutMs <= 0) return false // 0 means no timeout
+        val startTime = sessionStartTimes[packageName] ?: return true
+        return System.currentTimeMillis() - startTime > timeoutMs
+    }
+
+    /**
+     * Testing method to set a custom session start time for a package.
+     * This allows tests to simulate expired sessions without waiting.
+     */
+    @Suppress("TestOnly")
+    @Synchronized
+    fun setSessionStartTimeForTesting(packageName: String, startTime: Long) {
+        sessionStartTimes[packageName] = startTime
+    }
 }
