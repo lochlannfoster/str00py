@@ -14,6 +14,7 @@ import android.util.Log
 import android.view.accessibility.AccessibilityManager
 import android.widget.Button
 import android.widget.GridLayout
+import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
@@ -176,6 +177,12 @@ class StroopLockActivity : AppCompatActivity() {
         enableAccessibilityButton.setOnClickListener {
             Log.d(TAG, "Enable accessibility button clicked")
             showPermissionsGuide()
+        }
+
+        // Setup settings button
+        findViewById<ImageButton>(R.id.settingsButton)?.setOnClickListener {
+            val intent = Intent(this, SettingsActivity::class.java)
+            startActivity(intent)
         }
     }
 
