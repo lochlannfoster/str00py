@@ -3,12 +3,14 @@ package com.example.strooplocker
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
+import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
+import android.widget.SearchView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -20,6 +22,17 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.core.content.ContextCompat
 import android.graphics.Color
+
+/**
+ * Data class to hold app information for display and filtering.
+ */
+data class AppInfo(
+    val appName: String,
+    val packageName: String,
+    val icon: Drawable,
+    val applicationInfo: ApplicationInfo,
+    var isLocked: Boolean
+)
 
 
 /**
@@ -40,6 +53,8 @@ class SelectAppsActivity : AppCompatActivity() {
 
     private lateinit var recyclerView: RecyclerView
     private lateinit var appsAdapter: AppsAdapter
+    private var allApps: List<AppInfo> = emptyList()
+    private var filteredApps: List<AppInfo> = emptyList()
 
     /**
      * Initializes the activity, sets up the RecyclerView, and
@@ -54,7 +69,39 @@ class SelectAppsActivity : AppCompatActivity() {
         recyclerView = findViewById(R.id.appsRecyclerView)
         recyclerView.layoutManager = LinearLayoutManager(this)
 
+        // Set up search functionality
+        val searchView = findViewById<SearchView>(R.id.searchView)
+        searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
+            override fun onQueryTextSubmit(query: String?): Boolean = false
+
+            override fun onQueryTextChange(newText: String?): Boolean {
+                filterApps(newText ?: "")
+                return true
+            }
+        })
+
         loadInstalledApps()
+    }
+
+    /**
+     * Filters the app list based on search query.
+     * Matches against app name and package name.
+     * Results are sorted with locked apps first, then alphabetically.
+     */
+    private fun filterApps(query: String) {
+        filteredApps = if (query.isEmpty()) {
+            allApps
+        } else {
+            allApps.filter {
+                it.appName.contains(query, ignoreCase = true) ||
+                it.packageName.contains(query, ignoreCase = true)
+            }
+        }
+        // Sort: locked apps first, then alphabetically
+        filteredApps = filteredApps.sortedWith(compareBy({ !it.isLocked }, { it.appName.lowercase() }))
+        if (::appsAdapter.isInitialized) {
+            appsAdapter.updateList(filteredApps)
+        }
     }
 
     /**
@@ -71,8 +118,8 @@ class SelectAppsActivity : AppCompatActivity() {
             Log.d(TAG, "Loading installed apps")
 
             try {
+                val pm = packageManager
                 val apps = withContext(Dispatchers.IO) {
-                    val pm = packageManager
                     val ourPackageName = packageName
 
                     Log.d(TAG, "Our package name: $ourPackageName")
@@ -108,16 +155,16 @@ class SelectAppsActivity : AppCompatActivity() {
                         .distinctBy { it.packageName }
 
                     Log.d(TAG, "Final filtered apps count: ${userApps.size}")
-                    userApps.sortedBy { app -> app.loadLabel(pm).toString() }
+                    userApps
                 }
 
                 // Check which apps are already locked
-                val lockedApps = withContext(Dispatchers.IO) {
+                val lockedAppsSet = withContext(Dispatchers.IO) {
                     Log.d(TAG, "Retrieving currently locked apps")
-                    LockManager.getLockedApps(this@SelectAppsActivity)
+                    LockManager.getLockedApps(this@SelectAppsActivity).toSet()
                 }
 
-                Log.d(TAG, "Currently locked apps: $lockedApps")
+                Log.d(TAG, "Currently locked apps: $lockedAppsSet")
 
                 // Display results or message if no apps found
                 if (apps.isEmpty()) {
@@ -126,11 +173,26 @@ class SelectAppsActivity : AppCompatActivity() {
                         Toast.LENGTH_LONG).show()
                     Log.w(TAG, "No apps available to lock - adapter not created")
                 } else {
-                    appsAdapter = AppsAdapter(apps, lockedApps.toSet()) { app, isLocked ->
-                        onAppSelected(app, isLocked)
+                    // Convert to AppInfo list with locked status
+                    val appInfoList = apps.map { app ->
+                        AppInfo(
+                            appName = app.loadLabel(pm).toString(),
+                            packageName = app.packageName,
+                            icon = app.loadIcon(pm),
+                            applicationInfo = app,
+                            isLocked = lockedAppsSet.contains(app.packageName)
+                        )
+                    }
+
+                    // Sort: locked apps first, then alphabetically
+                    allApps = appInfoList.sortedWith(compareBy({ !it.isLocked }, { it.appName.lowercase() }))
+                    filteredApps = allApps
+
+                    appsAdapter = AppsAdapter(filteredApps) { appInfo ->
+                        onAppSelected(appInfo)
                     }
                     recyclerView.adapter = appsAdapter
-                    Log.d(TAG, "Adapter set with ${apps.size} apps")
+                    Log.d(TAG, "Adapter set with ${allApps.size} apps")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading apps", e)
@@ -145,37 +207,47 @@ class SelectAppsActivity : AppCompatActivity() {
      * Handles app selection events.
      * Toggles the locked state of the selected app and updates the UI.
      *
-     * @param app The ApplicationInfo of the selected app
-     * @param isCurrentlyLocked Whether the app is currently locked
+     * @param appInfo The AppInfo of the selected app
      */
-    private fun onAppSelected(app: ApplicationInfo, isCurrentlyLocked: Boolean) {
+    private fun onAppSelected(appInfo: AppInfo) {
         lifecycleScope.launch {
-            Log.d(TAG, "App selection changed - Package: ${app.packageName}, Currently Locked: $isCurrentlyLocked")
+            Log.d(TAG, "App selection changed - Package: ${appInfo.packageName}, Currently Locked: ${appInfo.isLocked}")
 
             try {
-                if (isCurrentlyLocked) {
+                if (appInfo.isLocked) {
                     // Unlock the app
-                    LockManager.removeLockedApp(this@SelectAppsActivity, app.packageName)
+                    LockManager.removeLockedApp(this@SelectAppsActivity, appInfo.packageName)
                     Toast.makeText(this@SelectAppsActivity,
-                        getString(R.string.toast_app_unlocked, app.loadLabel(packageManager)),
+                        getString(R.string.toast_app_unlocked, appInfo.appName),
                         Toast.LENGTH_SHORT).show()
-                    Log.d(TAG, "Successfully UNLOCKED: ${app.packageName}")
+                    Log.d(TAG, "Successfully UNLOCKED: ${appInfo.packageName}")
                 } else {
                     // Lock the app
-                    LockManager.addLockedApp(this@SelectAppsActivity, app.packageName)
+                    LockManager.addLockedApp(this@SelectAppsActivity, appInfo.packageName)
                     Toast.makeText(this@SelectAppsActivity,
-                        getString(R.string.toast_app_locked, app.loadLabel(packageManager)),
+                        getString(R.string.toast_app_locked, appInfo.appName),
                         Toast.LENGTH_SHORT).show()
-                    Log.d(TAG, "Successfully LOCKED: ${app.packageName}")
+                    Log.d(TAG, "Successfully LOCKED: ${appInfo.packageName}")
                 }
 
-                // Refresh the list
+                // Update locked status in our lists
                 val updatedLockedApps = withContext(Dispatchers.IO) {
-                    LockManager.getLockedApps(this@SelectAppsActivity)
+                    LockManager.getLockedApps(this@SelectAppsActivity).toSet()
                 }
 
                 Log.d(TAG, "Current locked apps: ${updatedLockedApps.joinToString()}")
-                appsAdapter.updateLockedApps(updatedLockedApps.toSet())
+
+                // Update isLocked status in allApps
+                allApps = allApps.map { app ->
+                    app.copy(isLocked = updatedLockedApps.contains(app.packageName))
+                }
+
+                // Re-sort: locked apps first, then alphabetically
+                allApps = allApps.sortedWith(compareBy({ !it.isLocked }, { it.appName.lowercase() }))
+
+                // Re-apply filter with current search query
+                val searchView = findViewById<SearchView>(R.id.searchView)
+                filterApps(searchView.query?.toString() ?: "")
             } catch (e: Exception) {
                 Log.e(TAG, "Error updating app lock state", e)
                 Toast.makeText(this@SelectAppsActivity,
@@ -189,14 +261,12 @@ class SelectAppsActivity : AppCompatActivity() {
      * RecyclerView adapter for displaying the list of apps.
      * Handles the UI for each app item and its locked status.
      *
-     * @property apps List of ApplicationInfo objects for installed apps
-     * @property lockedApps Set of package names for apps that are locked
+     * @property apps List of AppInfo objects for installed apps
      * @property onAppClick Callback function when an app is clicked
      */
     inner class AppsAdapter(
-        private val apps: List<ApplicationInfo>,
-        private var lockedApps: Set<String>,
-        private val onAppClick: (ApplicationInfo, Boolean) -> Unit
+        private var apps: List<AppInfo>,
+        private val onAppClick: (AppInfo) -> Unit
     ) : RecyclerView.Adapter<AppsAdapter.AppViewHolder>() {
 
         /**
@@ -223,18 +293,17 @@ class SelectAppsActivity : AppCompatActivity() {
          * Displays app name, icon, and lock status.
          */
         override fun onBindViewHolder(holder: AppViewHolder, position: Int) {
-            val app = apps[position]
-            val isLocked = lockedApps.contains(app.packageName)
+            val appInfo = apps[position]
 
-            holder.appName.text = app.loadLabel(packageManager)
-            holder.appIcon.setImageDrawable(app.loadIcon(packageManager))
-            holder.lockStatus.text = if (isLocked) "Locked" else "Unlocked"
+            holder.appName.text = appInfo.appName
+            holder.appIcon.setImageDrawable(appInfo.icon)
+            holder.lockStatus.text = if (appInfo.isLocked) "Locked" else "Unlocked"
 
             // Set text color based on lock status
-            holder.lockStatus.setTextColor(if (isLocked) Color.GREEN else Color.RED)
+            holder.lockStatus.setTextColor(if (appInfo.isLocked) Color.GREEN else Color.RED)
 
             holder.itemView.setOnClickListener {
-                onAppClick(app, isLocked)
+                onAppClick(appInfo)
             }
         }
 
@@ -244,12 +313,12 @@ class SelectAppsActivity : AppCompatActivity() {
         override fun getItemCount() = apps.size
 
         /**
-         * Updates the set of locked apps and refreshes the UI.
+         * Updates the list of apps and refreshes the UI.
          *
-         * @param newLockedApps Updated set of package names for locked apps
+         * @param newList Updated list of AppInfo objects
          */
-        fun updateLockedApps(newLockedApps: Set<String>) {
-            lockedApps = newLockedApps
+        fun updateList(newList: List<AppInfo>) {
+            apps = newList
             notifyDataSetChanged()
         }
     }

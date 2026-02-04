@@ -62,6 +62,9 @@
     <string name="app_status_locked">Locked</string>
     <string name="app_status_unlocked">Unlocked</string>
 
+    <!-- Search -->
+    <string name="search_apps">Search apps...</string>
+
     <!-- Button states -->
     <string name="all_permissions_ok">All Permissions OK</string>
 
