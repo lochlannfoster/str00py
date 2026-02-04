@@ -496,8 +496,7 @@ class StroopLockActivity : AppCompatActivity() {
         try {
             Log.d(TAG, "Creating color buttons with ${colorNames.size} available colors")
 
-            // Clear existing buttons
-            answerGrid.removeAllViews()
+            // Note: answerGrid is cleared by generateChallenge() before calling this
 
             // Explicitly set column and row count
             answerGrid.columnCount = 3

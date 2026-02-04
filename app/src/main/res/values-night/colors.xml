@@ -19,6 +19,9 @@
     <color name="black">#000000</color>
     <color name="white">#FFFFFF</color>
 
+    <!-- Warning/danger color for master disable -->
+    <color name="warning_red">#FF6B6B</color>
+
     <!-- Button styling for challenge (dark theme) -->
     <color name="challenge_button_background">#424242</color>
     <color name="challenge_text_outline">#FFFFFF</color>
