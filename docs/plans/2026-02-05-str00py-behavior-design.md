@@ -77,41 +77,42 @@ str00py locks selected apps behind Stroop color-word challenges. User must ident
 
 ## Challenge UI
 
-### Colors (Standard Mode)
+### Colors
 
-9 colors with adaptive text outline for readability:
+9 colors:
 
-| Color | RGB | Outline |
-|-------|-----|---------|
-| Red | (255, 0, 0) | White |
-| Green | (0, 255, 0) | Black |
-| Blue | (0, 0, 255) | White |
-| Yellow | (255, 255, 0) | Black |
-| Purple | (128, 0, 128) | White |
-| Orange | (255, 165, 0) | Black |
-| Pink | (255, 192, 203) | Black |
-| Brown | (165, 42, 42) | White |
-| Cyan | (0, 255, 255) | Black |
-
-### Shapes (Colorblind Mode)
-
-9 shapes replace colors when colorblind mode enabled:
-
-Circle, Square, Triangle, Star, Heart, Diamond, Cross, Arrow, Moon
-
-Challenge becomes: identify the SHAPE (not the word).
+| Color | RGB |
+|-------|-----|
+| Red | (255, 0, 0) |
+| Green | (0, 255, 0) |
+| Blue | (0, 0, 255) |
+| Yellow | (255, 255, 0) |
+| Purple | (128, 0, 128) |
+| Orange | (255, 165, 0) |
+| Pink | (255, 192, 203) |
+| Brown | (165, 42, 42) |
+| Cyan | (0, 255, 255) |
 
 ### Button Design
 
 - Shape: Square
 - Layout: Equidistant 3x3 grid
 - Background: Light gray (#E0E0E0) in light theme, dark gray in dark theme
-- Text: Colored with adaptive outline (black for light colors, white for dark)
+- Text: Colored with theme-based outline
+
+### Text Outline (Buttons and Challenge Word)
+
+Outline color is based on theme, not text color:
+
+| Theme | Outline Color |
+|-------|---------------|
+| Light mode | Black (contrasts with light background) |
+| Dark mode | White (contrasts with dark background) |
 
 ### Challenge Word
 
 - Large, centered above button grid
-- Adaptive outline (same treatment as buttons)
+- Theme-based outline (same as buttons)
 - Font: Bold/extrabold for readability
 
 ### Wrong Answer Feedback
@@ -143,7 +144,6 @@ Accessed via gear icon (top right) on both main screen and challenge screen.
 | Sound | Off | On / Off |
 | Vibration | Off | On / Off |
 | Challenges required | 1 | Number to solve in a row |
-| Colorblind mode | Off | Off / Shapes |
 | Theme | System default | System / Light / Dark |
 | Master disable | Off | On / Off (protected by Stroop challenge) |
 
@@ -183,13 +183,7 @@ Cannot lock:
 
 Required for app to function.
 
-| Scenario | Behavior |
-|----------|----------|
-| First launch | Prompt to enable accessibility service |
-| Permission denied | Keep prompting on each app open |
-| Permission disabled later | Prompt returns on next app open |
-
-Prompt appears on both main screen and challenge screen until enabled.
+**Simple check:** Every time the main screen or challenge screen is active, check if accessibility permission is enabled. If not, prompt user to enable it.
 
 ### Overlay Permission
 
@@ -204,6 +198,13 @@ Persistent notification when str00py is active (accessibility service running).
 ---
 
 ## Future Work
+
+### Colorblind Mode (TODO)
+
+Implement accessibility mode using shapes instead of colors:
+- 9 shapes: Circle, Square, Triangle, Star, Heart, Diamond, Cross, Arrow, Moon
+- Challenge becomes: identify the SHAPE (not the word)
+- Add setting to toggle between color mode and shape mode
 
 ### Error States (TODO)
 
@@ -220,8 +221,8 @@ Need to define behavior for:
 | Component | Key Decision |
 |-----------|--------------|
 | Session model | One app at a time, any leave ends session |
-| Challenge | 9 colors/shapes, 3x3 grid, adaptive outlines |
-| Settings | 8 configurable options via gear menu |
+| Challenge | 9 colors, 3x3 grid, theme-based outlines |
+| Settings | 7 configurable options via gear menu |
 | App selection | User apps, alphabetical, tap to toggle |
-| Accessibility | Keep prompting until enabled |
+| Accessibility | Check permission on every screen, prompt if not enabled |
 | Notification | Persistent when active |
