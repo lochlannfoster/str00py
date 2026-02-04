@@ -74,9 +74,9 @@ class StroopLockActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_stroop_lock)
 
-        // Initialize settings and feedback managers
+        // Initialize settings and feedback managers (use applicationContext to avoid activity leaks)
         settingsManager = SettingsManager.getInstance(this)
-        feedbackManager = FeedbackManager(this, settingsManager)
+        feedbackManager = FeedbackManager(applicationContext, settingsManager)
 
         // Register for Activity Results to handle permission request callbacks
         registerActivityResultLaunchers()
