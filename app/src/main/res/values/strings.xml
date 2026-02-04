@@ -15,6 +15,7 @@
     <string name="select_app">Select App...</string>
     <string name="enable_accessibility">Enable Service</string>
     <string name="correct_answer">Correct!</string>
+    <string name="correct_continue">Correct! Keep going...</string>
     <string name="incorrect_answer">Incorrect! Try again.</string>
     <string name="service_not_enabled">Service is NOT enabled. Tap \'Enable Service\' to activate..</string>
     <string name="no_locked_app">No locked app selected!</string>

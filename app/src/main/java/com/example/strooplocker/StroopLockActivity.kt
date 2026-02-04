@@ -11,6 +11,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
+import android.view.View
 import android.view.accessibility.AccessibilityManager
 import android.widget.Button
 import android.widget.GridLayout
@@ -61,6 +62,11 @@ class StroopLockActivity : AppCompatActivity() {
     // Challenge state variables
     private var correctColor: String? = null
     private var packageToLaunch: String? = null
+
+    // Multiple challenges tracking
+    private var currentChallengeCount = 0
+    private var requiredChallenges = 1
+    private lateinit var progressIndicator: TextView
 
     // Feedback managers
     private lateinit var feedbackManager: FeedbackManager
@@ -193,6 +199,9 @@ class StroopLockActivity : AppCompatActivity() {
             val intent = Intent(this, SettingsActivity::class.java)
             startActivity(intent)
         }
+
+        // Initialize progress indicator
+        progressIndicator = findViewById(R.id.progressIndicator)
     }
 
     /**
@@ -416,7 +425,26 @@ class StroopLockActivity : AppCompatActivity() {
         } else {
             Log.d(TAG, "Starting challenge for $packageName")
             ChallengeManager.startChallenge(packageName)
+
+            // Reset challenge counter and load requirement
+            currentChallengeCount = 0
+            requiredChallenges = settingsManager.challengesRequired
+            updateProgressIndicator()
+
             generateChallenge()
+        }
+    }
+
+    /**
+     * Updates the progress indicator to show current challenge progress.
+     * Only visible when multiple challenges are required.
+     */
+    private fun updateProgressIndicator() {
+        if (requiredChallenges > 1) {
+            progressIndicator.visibility = View.VISIBLE
+            progressIndicator.text = "${currentChallengeCount + 1} of $requiredChallenges"
+        } else {
+            progressIndicator.visibility = View.GONE
         }
     }
 
@@ -585,25 +613,39 @@ class StroopLockActivity : AppCompatActivity() {
     private fun onColorSelected(selectedColor: String) {
         if (selectedColor == correctColor) {
             Log.d(TAG, "Correct answer selected: $selectedColor")
-            Toast.makeText(this, getString(R.string.correct_answer), Toast.LENGTH_SHORT).show()
+            currentChallengeCount++
 
-            // Mark challenge as completed
-            packageToLaunch?.let { pkg ->
-                Log.d(TAG, "Completing challenge for: $pkg")
-                SessionManager.completeChallenge(pkg)
+            if (currentChallengeCount >= requiredChallenges) {
+                // All challenges completed
+                Toast.makeText(this, getString(R.string.correct_answer), Toast.LENGTH_SHORT).show()
 
-                // Add a short delay before launching app to allow UI feedback
-                challengeText.postDelayed({
-                    Log.d(TAG, "Launching locked app: $pkg")
-                    launchLockedApp(pkg)
-                }, 500) // 500ms delay for visual feedback
-            } ?: run {
-                // No package to launch, just finish
-                finish()
+                // Mark challenge as completed
+                packageToLaunch?.let { pkg ->
+                    Log.d(TAG, "Completing challenge for: $pkg")
+                    SessionManager.completeChallenge(pkg)
+
+                    // Add a short delay before launching app to allow UI feedback
+                    challengeText.postDelayed({
+                        Log.d(TAG, "Launching locked app: $pkg")
+                        launchLockedApp(pkg)
+                    }, 500) // 500ms delay for visual feedback
+                } ?: run {
+                    // No package to launch, just finish
+                    finish()
+                }
+            } else {
+                // More challenges needed
+                Log.d(TAG, "Challenge $currentChallengeCount of $requiredChallenges completed")
+                Toast.makeText(this, getString(R.string.correct_continue), Toast.LENGTH_SHORT).show()
+                updateProgressIndicator()
+                generateChallenge()
             }
         } else {
-            // Incorrect answer
+            // Incorrect answer - reset progress
             Log.d(TAG, "Incorrect answer: $selectedColor, expected: $correctColor")
+            currentChallengeCount = 0
+            updateProgressIndicator()
+
             Toast.makeText(this, getString(R.string.incorrect_answer), Toast.LENGTH_SHORT).show()
 
             // Play wrong answer feedback (shake, optional vibration, optional sound)
