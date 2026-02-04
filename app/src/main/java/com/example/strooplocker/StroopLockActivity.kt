@@ -471,6 +471,10 @@ class StroopLockActivity : AppCompatActivity() {
                 challengeText.setTextColor(Color.RED) // Fallback
             }
 
+            // Add text outline via shadow for better visibility
+            val outlineColor = resources.getColor(R.color.challenge_text_outline, theme)
+            challengeText.setShadowLayer(4f, 0f, 0f, outlineColor)
+
             // Create the buttons for color selection
             createColorButtons(colorNames)
 
@@ -503,9 +507,13 @@ class StroopLockActivity : AppCompatActivity() {
             val shuffledColors = colorNames.shuffled()
 
             // Make sure we don't use more colors than we have available
-            val numButtons = Math.min(9, shuffledColors.size)
+            val numButtons = minOf(9, shuffledColors.size)
 
             Log.d(TAG, "Will create $numButtons buttons")
+
+            // Get theme-based colors for button styling
+            val buttonBackground = resources.getColor(R.color.challenge_button_background, theme)
+            val outlineColor = resources.getColor(R.color.challenge_text_outline, theme)
 
             // For each color, create a button
             for (i in 0 until numButtons) {
@@ -517,6 +525,9 @@ class StroopLockActivity : AppCompatActivity() {
                 button.textSize = 18f
                 button.setPadding(8, 16, 8, 16)
 
+                // Set theme-based button background
+                button.setBackgroundColor(buttonBackground)
+
                 // Set a different text color than the button text (maintaining Stroop effect)
                 // Safely get a different color for the text
                 val textColorIndex = if (numButtons > 1) {
@@ -527,6 +538,9 @@ class StroopLockActivity : AppCompatActivity() {
 
                 val textColorName = shuffledColors[textColorIndex]
                 button.setTextColor(colorMap[textColorName] ?: Color.BLACK)
+
+                // Add text outline via shadow for better visibility
+                button.setShadowLayer(2f, 0f, 0f, outlineColor)
 
                 // Fixed layout parameters for consistent button sizes
                 val params = GridLayout.LayoutParams()

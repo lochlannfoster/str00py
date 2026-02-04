@@ -18,4 +18,8 @@
     <color name="teal_700">#018786</color>
     <color name="black">#000000</color>
     <color name="white">#FFFFFF</color>
+
+    <!-- Button styling for challenge (dark theme) -->
+    <color name="challenge_button_background">#424242</color>
+    <color name="challenge_text_outline">#FFFFFF</color>
 </resources>
